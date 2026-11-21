@@ -427,7 +427,7 @@
 
   <div x-show="adminToken">
     <div class="flex flex-wrap items-center gap-2 mb-4">
-      <template x-for="t in [['settings','Ustawienia'],['audit','Dziennik zdarzeń'],['stats','Statystyki'],['system','System i kopie']]">
+      <template x-for="t in [['settings','Ustawienia'],['dicts','Słowniki'],['audit','Dziennik zdarzeń'],['stats','Statystyki'],['system','System i kopie']]">
         <button class="px-3 py-1.5 rounded-full text-sm border" :class="adminTab===t[0]?'bg-[#0b3d91] text-white border-[#0b3d91]':'bg-white'" @click="adminTab=t[0]; adminLoad()" x-text="t[1]"></button></template>
       <button class="ml-auto text-sm text-slate-500 hover:text-red-600" @click="adminLogout()">Wyloguj administratora</button>
     </div>
@@ -469,6 +469,31 @@
           <p>Tryb <b>local</b> przełącza cały system na serwer AI w Urzędzie (np. Ollama z modelami Bielik i Qwen2.5-VL) – dane nie opuszczają sieci Urzędu.</p>
         </div>
       </div>
+    </div>
+
+
+    <!-- SŁOWNIKI -->
+    <div x-show="adminTab==='dicts'" class="bg-white border rounded-lg">
+      <div class="p-4 flex flex-wrap items-center gap-2 border-b">
+        <h2 class="font-semibold text-slate-900">Komórki organizacyjne</h2>
+        <span class="text-xs px-2 py-0.5 rounded-full" :class="adm.deptCustom?'bg-amber-100 text-amber-800':'bg-emerald-100 text-emerald-800'" x-text="adm.deptCustom?'lista edytowana':'lista z BIP UMB'"></span>
+        <input x-model="adm.deptQ" placeholder="Filtruj…" class="border rounded px-3 py-1.5 text-sm ml-auto w-48">
+        <button class="border px-3 py-1.5 rounded text-sm bg-white" @click="adm.depts.unshift({code:'',name:'',scope:'',url:'',external:false}); adm.deptQ=''">+ Dodaj komórkę</button>
+        <button class="bg-[#00305f] text-white px-3 py-1.5 rounded text-sm" @click="saveDepts()">Zapisz słownik</button>
+        <button x-show="adm.deptCustom" class="text-sm text-slate-500 hover:text-red-600" @click="resetDepts()">Przywróć listę z BIP</button>
+      </div>
+      <p class="px-4 pt-3 text-xs text-slate-500">Zakres działania jest podstawą, na której AI proponuje właściwe komórki – im dokładniejszy opis, tym trafniejsze propozycje. Zmiany obowiązują od razu.</p>
+      <p x-show="adm.deptErr" class="px-4 pt-2 text-sm text-red-600" x-text="adm.deptErr"></p>
+      <div class="overflow-x-auto p-2"><table class="w-full text-sm">
+        <thead><tr><th class="px-2 py-2 text-left w-28">Symbol</th><th class="px-2 py-2 text-left w-72">Nazwa</th><th class="px-2 py-2 text-left">Zakres działania (dla AI)</th><th class="px-2 py-2 text-left w-56">Strona BIP</th><th class="px-2 py-2 text-center w-20">Poza Urzędem</th><th class="w-10"></th></tr></thead>
+        <tbody><template x-for="(d,i) in adm.depts" :key="i"><tr class="border-t align-top" x-show="!adm.deptQ || (d.code+' '+d.name+' '+d.scope).toLowerCase().includes(adm.deptQ.toLowerCase())">
+          <td class="px-1 py-1"><input x-model="d.code" class="border rounded px-2 py-1 w-full font-mono text-xs"></td>
+          <td class="px-1 py-1"><input x-model="d.name" class="border rounded px-2 py-1 w-full text-xs"></td>
+          <td class="px-1 py-1"><textarea x-model="d.scope" rows="2" class="border rounded px-2 py-1 w-full text-xs"></textarea></td>
+          <td class="px-1 py-1"><input x-model="d.url" class="border rounded px-2 py-1 w-full text-xs" placeholder="https://bip…"></td>
+          <td class="px-1 py-1 text-center"><input type="checkbox" x-model="d.external" class="mt-2"></td>
+          <td class="px-1 py-1"><button class="text-red-500 text-lg leading-none px-2 mt-1" title="usuń" @click="adm.depts.splice(i,1)">×</button></td></tr></template></tbody></table></div>
+      <p class="px-4 pb-3 text-[11px] text-slate-400" x-text="adm.depts.length+' komórek · źródło domyślne: '+(adm.deptSource||'')"></p>
     </div>
 
     <!-- DZIENNIK -->
@@ -737,6 +762,42 @@
           </div>
 
           <div class="bg-white border rounded p-4 panel-card">
+            <div class="flex items-center gap-2 mb-2"><h3 class="font-semibold">6. Pisma procesowe</h3><span class="text-xs text-slate-400">wzory Biura Komunikacji Społecznej UMB</span></div>
+            <div class="grid sm:grid-cols-3 gap-2 mb-2">
+              <template x-for="k in [['kwerenda','Przedłużenie terminu (kwerenda)'],['doprecyzowanie','Wezwanie do doprecyzowania'],['odmowa','Projekt decyzji odmownej']]">
+                <button class="text-left border rounded-lg px-3 py-2 text-xs" :class="lf.kind===k[0]?'border-[#0b3d91] bg-blue-50 text-[#0b3d91] font-semibold':'bg-white'" @click="setLetterKind(k[0])" x-text="k[1]"></button></template>
+            </div>
+            <div class="space-y-2 text-sm">
+              <template x-if="lf.kind==='kwerenda'"><div class="grid sm:grid-cols-2 gap-2">
+                <label class="text-xs">Orientacyjny nowy termin<input type="date" x-model="lf.new_date" :max="cur.max_deadline" class="border rounded px-2 py-1 w-full"></label>
+                <p class="text-[11px] text-slate-500 self-end" x-text="'Maksymalnie 2 miesiące od wpływu: '+fmt(cur.max_deadline)+' (art. 13 ust. 2 UDIP)'"></p></div></template>
+              <template x-if="lf.kind==='doprecyzowanie'"><div class="grid sm:grid-cols-3 gap-2">
+                <label class="text-xs sm:col-span-2">Komórka wnosząca o doprecyzowanie<select x-model="lf.dept" class="border rounded px-2 py-1 w-full"><option value="">— wybierz —</option><template x-for="d in depts"><option :value="d.code" x-text="d.code+' – '+d.name"></option></template></select></label>
+                <label class="text-xs">Termin na odpowiedź (dni)<input type="number" min="3" max="30" x-model="lf.days" class="border rounded px-2 py-1 w-full"></label>
+                <label class="text-xs sm:col-span-3 flex items-center gap-2"><input type="checkbox" x-model="lf.withDate"> wyznacz też nowy termin rozpatrzenia (art. 13 ust. 2)
+                  <input x-show="lf.withDate" type="date" x-model="lf.new_date" :max="cur.max_deadline" class="border rounded px-2 py-1"></label></div></template>
+              <template x-if="lf.kind==='odmowa'"><label class="text-xs block">Podstawa odmowy<select x-model="lf.ground" class="border rounded px-2 py-1 w-full">
+                <option value="prywatnosc">Prywatność osoby fizycznej (art. 5 ust. 2)</option><option value="tajemnica_przedsiebiorcy">Tajemnica przedsiębiorcy (art. 5 ust. 2)</option>
+                <option value="niejawne">Informacje niejawne / inne tajemnice ustawowe (art. 5 ust. 1)</option><option value="przetworzona">Informacja przetworzona (art. 3 ust. 1 pkt 1)</option></select></label></template>
+              <textarea x-model="lf.notes" class="border rounded px-2 py-1 w-full h-16 text-sm" :placeholder="{kwerenda:'Powód przedłużenia (opcjonalnie) – domyślnie: konieczność przeprowadzenia całościowej kwerendy',doprecyzowanie:'Czego dotyczy doprecyzowanie, np. wskazanie konkretnych dokumentów lub okresu',odmowa:'Uzasadnienie faktyczne – jakie informacje są chronione i dlaczego'}[lf.kind]"></textarea>
+              <button class="bg-[#00305f] text-white px-3 py-1.5 rounded text-sm" @click="makeLetter()">✨ Przygotuj pismo</button>
+              <span class="text-[11px] text-slate-500 ml-2">Szkielet pisma według wzoru UMB, AI redaguje tylko opis zakresu i notatkę. Nic nie jest wysyłane.</span>
+            </div>
+            <template x-for="L in (cur.letters||[])" :key="L.id"><details class="border rounded mt-3 text-sm" :open="L.id===lastLetter">
+              <summary class="cursor-pointer px-3 py-2 flex flex-wrap items-center gap-2"><b x-text="L.title"></b><span class="text-xs text-slate-400" x-text="L.created_at"></span>
+                <span x-show="L.new_date" class="pill bg-purple-100 text-purple-800" x-text="'nowy termin: '+fmt(L.new_date)"></span>
+                <span x-show="L.applied" class="pill bg-emerald-100 text-emerald-800">✓ termin w kalendarzu</span></summary>
+              <div class="px-3 pb-3">
+                <textarea x-model="L.text" @change="saveLetter(L)" class="w-full h-72 border rounded p-2 text-sm"></textarea>
+                <div class="flex flex-wrap gap-2 mt-2">
+                  <button class="border px-3 py-1 rounded text-xs bg-white" @click="adminDownload('/api/letters/'+L.id+'/docx', L.kind+'.docx')">⬇ DOCX</button>
+                  <button x-show="L.new_date && !L.applied" class="bg-purple-700 text-white px-3 py-1 rounded text-xs" @click="applyLetter(L)">Zastosuj nowy termin w kalendarzu</button>
+                  <button class="ml-auto text-xs text-red-600" @click="delLetter(L)">usuń</button></div>
+                <p class="text-[11px] text-slate-500 mt-1">Uzupełnij miejsca oznaczone [[…]]. Projekt decyzji wymaga weryfikacji przez Zespół Prawny (§ 11 ust. 9 Zarządzenia 535/2024).</p>
+              </div></details></template>
+          </div>
+
+          <div class="bg-white border rounded p-4 panel-card">
             <h3 class="font-semibold mb-1">Historia sprawy</h3>
             <ul class="text-xs space-y-0.5"><template x-for="h in (cur.history||[]).slice().reverse()"><li><span class="text-slate-400" x-text="h.at"></span> · <span x-text="h.note||h.status"></span></li></template></ul>
             <button class="text-xs text-red-600 mt-2" @click="delRequest()">usuń wniosek</button>
@@ -816,7 +877,7 @@
 function app(){return{
   tabs:[{id:'cal',label:'Kalendarz wniosków'},{id:'arch',label:'Archiwum i baza wiedzy'},{id:'rec',label:'Rozpoznawanie dokumentów'},{id:'anon',label:'Anonimizacja dokumentu'}],
   tab:'cal', view:'table', cfg:{statuses:{}}, items:[], years:[], year:'', hideDone:false, depts:[], busy:'', toast:'', dragOver:false,
-  cur:null, edit:{}, mode:'anon', dv:{text:'',spans:[]}, month:new Date(), archive:[], knowledge:[], archQ:'', cats:[], kView:null, ver:null, me:'', adminToken:'', adminPw:'', adminErr:'', adminTab:'settings', adm:{settings:null,form:{},err:'',test:null,audit:[],actors:[],q:'',actor:'',otype:'',stats:null,system:null,resetTxt:''}, docs:[], doc:null, forceVision:false, allReqs:[], selReq:'', kwDays:30, sa:{text:'',spans:null,result:''},
+  cur:null, edit:{}, mode:'anon', dv:{text:'',spans:[]}, month:new Date(), archive:[], knowledge:[], archQ:'', cats:[], kView:null, ver:null, lf:{kind:'kwerenda',new_date:'',notes:'',dept:'',days:7,ground:'prywatnosc',withDate:false}, lastLetter:null, me:'', adminToken:'', adminPw:'', adminErr:'', adminTab:'settings', adm:{depts:[],deptCustom:false,deptSource:'',deptQ:'',deptErr:'',settings:null,form:{},err:'',test:null,audit:[],actors:[],q:'',actor:'',otype:'',stats:null,system:null,resetTxt:''}, docs:[], doc:null, forceVision:false, allReqs:[], selReq:'', kwDays:30, sa:{text:'',spans:null,result:''},
   async init(){ try{ this.me=localStorage.getItem('udip_me')||''; this.adminToken=sessionStorage.getItem('udip_admin')||'' }catch(e){}  this.cfg=await (await fetch('/api/config')).json(); this.depts=await (await fetch('/api/departments')).json(); this.cats=await (await fetch('/api/anonymization-categories')).json();
     this.year=String(new Date().getFullYear()); await this.load(); if(!this.years.map(String).includes(this.year)) {this.year=''; await this.load();} this.loadArchive(); },
   hdrs(h={}){ const o={...h}; if(this.me) o['X-User']=encodeURIComponent(this.me); if(this.adminToken) o['X-Admin-Token']=this.adminToken; return o },
@@ -846,7 +907,7 @@ function app(){return{
       await this.load(); this.setCur(r); this.say('✅ Wniosek w kalendarzu po '+Math.round((Date.now()-t0)/1000)+' s · termin '+this.fmt(r.deadline)); }catch(e){ this.say('Błąd: '+e.message) }
     clearInterval(tm); this.busy='' },
   async open(id){ const r=await this.api('/api/requests/'+id); this.setCur(r); if(!(r.similar||[]).length){ const r2=await this.api('/api/requests/'+id+'/similar',{method:'POST'}); if(this.cur&&this.cur.id===id){ const k=this.dv; this.setCur(r2); this.dv=k } } },
-  setCur(r){ this.cur=r; this.edit={lp:r.lp,number:r.number,received_date:r.received_date,initials:r.initials,extended_days:r.extended_days||0,
+  setCur(r){ if(!this.cur||this.cur.id!==r.id){ this.lf={kind:'kwerenda',new_date:r.max_deadline||'',notes:'',dept:'',days:7,ground:'prywatnosc',withDate:false} } this.cur=r; this.edit={lp:r.lp,number:r.number,received_date:r.received_date,initials:r.initials,extended_days:r.extended_days||0,
       answered_date:r.answered_date,requester:r.requester,subject:r.subject,summary:r.summary};
     this.dv={text:r.draft||'', spans:(r.anon_spans||[]).map(s=>({...s,ok:s.ok||false}))}; this.ver=r.verification||null; this.mode=(r.verification&&r.verification.counts&&r.verification.counts.error)?'check':'anon' },
   async patch(body){ const r=await this.api('/api/requests/'+this.cur.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -910,6 +971,18 @@ function app(){return{
     try{ const r=await this.api('/api/documents/import-archive',{method:'POST'}); this.say(`Dodano do archiwum: ${r.added.length} spraw${r.skipped.length?(' · pominięto: '+r.skipped.length):''}`); this.loadArchive() }catch(e){ this.say('Błąd: '+e.message) } this.busy='' },
   anonFromDoc(){ this.sa={text:this.doc.text,spans:null,result:''}; this.doc=null; this.tab='anon'; this.$nextTick(()=>this.anonPaste()) },
 
+
+  // ---- pisma procesowe ----
+  setLetterKind(k){ this.lf.kind=k; const c=this.cur||{}; if(k==='kwerenda'&&!this.lf.new_date) this.lf.new_date=c.max_deadline||'';
+    if(k==='doprecyzowanie'&&!this.lf.dept){ const d=((c.departments||{}).departments||[])[0]; this.lf.dept=d?d.code:'' } },
+  async makeLetter(){ const f=this.lf; if(f.kind==='doprecyzowanie'&&!f.notes.trim()) return this.say('Opisz, czego dotyczy doprecyzowanie');
+    this.busy='Przygotowuję pismo według wzoru UMB…';
+    try{ const body={kind:f.kind,notes:f.notes,ground:f.ground,dept:f.dept,days:f.days,new_date:(f.kind==='kwerenda'||(f.kind==='doprecyzowanie'&&f.withDate))?f.new_date:null};
+      const r=await this.api('/api/requests/'+this.cur.id+'/letters',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      const keep=this.dv; this.setCur(r); this.dv=keep; this.lastLetter=(r.letters[0]||{}).id; this.lf.notes=''; this.say('Pismo gotowe – sprawdź i uzupełnij [[…]]') }catch(e){ this.say('Błąd: '+e.message) } this.busy='' },
+  async saveLetter(L){ try{ await this.api('/api/letters/'+L.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:L.text})}); this.say('Zapisano zmiany w piśmie') }catch(e){ this.say('Błąd: '+e.message) } },
+  async applyLetter(L){ try{ const r=await this.api('/api/letters/'+L.id+'/apply',{method:'POST'}); const keep=this.dv; this.setCur(r); this.dv=keep; this.lastLetter=L.id; await this.load(); this.say('Nowy termin w kalendarzu: '+this.fmt(r.deadline)) }catch(e){ this.say('Błąd: '+e.message) } },
+  async delLetter(L){ if(!confirm('Usunąć pismo?')) return; await this.api('/api/letters/'+L.id,{method:'DELETE'}); this.open(this.cur.id) },
   // ---- administracja ----
   saveMe(){ try{ localStorage.setItem('udip_me', this.me.trim()) }catch(e){} },
   openAdmin(){ this.tab='admin'; if(this.adminToken) this.adminLoad() },
@@ -918,6 +991,7 @@ function app(){return{
   adminLogout(expired){ this.adminToken=''; try{ sessionStorage.removeItem('udip_admin') }catch(e){} if(expired===true) this.say('Sesja administratora wygasła – zaloguj się ponownie') },
   async adminLoad(){ if(!this.adminToken) return; try{
       if(this.adminTab==='settings'){ const r=await this.api('/api/admin/settings'); this.adm.settings=r; this.adm.form={...r.values}; this.adm.err='' }
+      if(this.adminTab==='dicts'){ const r=await this.api('/api/admin/departments'); this.adm.depts=r.items.map(d=>({external:false,url:'',scope:'',...d})); this.adm.deptCustom=r.custom; this.adm.deptSource=r.source; this.adm.deptErr='' }
       if(this.adminTab==='audit') await this.loadAudit();
       if(this.adminTab==='stats') this.adm.stats=await this.api('/api/admin/stats');
       if(this.adminTab==='system') this.adm.system=await this.api('/api/admin/system');
@@ -936,6 +1010,10 @@ function app(){return{
   async restoreFile(){ const f=this.$refs.restoreFile.files[0]; if(!f) return this.say('Wybierz plik .db'); if(!confirm('Przywrócić dane z pliku '+f.name+'?')) return;
     try{ const fd=new FormData(); fd.append('file',f); const r=await this.api('/api/admin/restore',{method:'POST',body:fd}); this.say('Przywrócono · kopia bezpieczeństwa: '+r.safety_backup); await this.load(); this.adminLoad() }catch(e){ this.say('Błąd: '+e.message) } },
   async resetDemo(){ try{ const r=await this.api('/api/admin/reset-demo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:'RESET'})}); this.adm.resetTxt=''; this.say('Zresetowano · kopia bezpieczeństwa: '+r.safety_backup); await this.load(); this.loadArchive(); this.adminLoad() }catch(e){ this.say('Błąd: '+e.message) } },
+  async saveDepts(){ this.adm.deptErr=''; try{ const r=await this.api('/api/admin/departments',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:this.adm.depts})});
+      this.adm.depts=r.items.map(d=>({external:false,url:'',scope:'',...d})); this.adm.deptCustom=r.custom; this.depts=await (await fetch('/api/departments')).json(); this.say('Zapisano słownik: '+r.items.length+' komórek') }catch(e){ this.adm.deptErr=e.message } },
+  async resetDepts(){ if(!confirm('Przywrócić oficjalną listę komórek z BIP? Wprowadzone zmiany zostaną usunięte.')) return; const r=await this.api('/api/admin/departments/reset',{method:'POST'});
+    this.adm.depts=r.items.map(d=>({external:false,url:'',scope:'',...d})); this.adm.deptCustom=r.custom; this.depts=await (await fetch('/api/departments')).json(); this.say('Przywrócono listę z BIP') },
   barW(n,obj){ const mx=Math.max(1,...Object.values(obj||{})); return Math.round(100*n/mx) },
   fmtN(n){ return (n||0).toLocaleString('pl-PL') },
   fmtB(b){ b=b||0; return b>1e9?(b/1e9).toFixed(1)+' GB':(b>1e6?(b/1e6).toFixed(1)+' MB':Math.round(b/1e3)+' kB') },
