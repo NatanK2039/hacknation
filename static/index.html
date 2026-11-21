@@ -518,10 +518,30 @@
               <div>
                 <div class="flex gap-1 text-xs mb-2">
                   <button class="px-2 py-1 rounded border" :class="mode==='anon'?'bg-slate-800 text-white':''" @click="toAnon()">Anonimizacja</button>
+                  <button class="px-2 py-1 rounded border" :class="mode==='check'?'bg-slate-800 text-white':''" @click="runCheck()">Kontrola faktów
+                    <span x-show="ver && ver.counts && (ver.counts.error+ver.counts.warn)" class="ml-1 px-1 rounded bg-red-600 text-white" x-text="ver&&ver.counts?(ver.counts.error+ver.counts.warn):''"></span></button>
                   <button class="px-2 py-1 rounded border" :class="mode==='edit'?'bg-slate-800 text-white':''" @click="mode='edit'">Edycja treści</button>
                   <span class="ml-auto text-slate-500" x-text="stats(dv)"></span>
                 </div>
+                <div x-show="ver && ver.counts" class="text-xs mb-2 p-2.5 rounded border flex items-start gap-2 cursor-pointer" @click="runCheck()"
+                  :class="ver&&ver.counts&&ver.counts.error?'bg-red-50 border-red-200 text-red-800':'bg-emerald-50 border-emerald-200 text-emerald-800'">
+                  <span class="text-base leading-none" x-text="ver&&ver.counts&&ver.counts.error?'⚠':'✓'"></span>
+                  <div><b>Kontrola faktów:</b>
+                    <span x-show="ver&&ver.counts&&!ver.counts.error">wszystkie liczby i daty w treści odpowiedzi występują w materiałach od wydziałów.</span>
+                    <span x-show="ver&&ver.counts&&ver.counts.error" x-text="(ver&&ver.counts?ver.counts.error:0)+' liczb/dat spoza odpowiedzi wydziałów – możliwa halucynacja.'"></span>
+                    <span x-show="ver&&ver.counts&&ver.counts.warn" x-text="' Ostrzeżenia: '+(ver&&ver.counts?ver.counts.warn:0)+'.'"></span>
+                    <span x-show="ver&&ver.counts&&ver.counts.todo" x-text="' Do uzupełnienia: '+(ver&&ver.counts?ver.counts.todo:0)+'.'"></span>
+                    <span class="underline">Pokaż w tekście →</span></div></div>
                 <div class="text-xs mb-2 p-2 bg-amber-50 border border-amber-200 rounded">Sprawdź merytorycznie! <span class="mark-missing px-1">[[…]]</span> = brak danych / decyzja urzędnika. [źr. W1] = źródło zdania (odpowiedź wydziału).</div>
+                <div x-show="mode==='check'" class="mb-2">
+                  <div class="border rounded p-3 text-sm anon-text max-h-[420px] overflow-y-auto"><template x-for="seg in checkSegments()">
+                    <span :class="seg.i ? (seg.i.level==='error'?'bg-red-200 text-red-900 rounded px-0.5 font-semibold':(seg.i.level==='todo'?'mark-missing':'underline decoration-amber-500 decoration-2 underline-offset-4')) : ''" :title="seg.i?seg.i.msg:''" x-text="seg.t"></span></template></div>
+                  <ul class="mt-2 text-xs space-y-1"><template x-for="it in ((ver||{}).issues||[])"><li class="flex gap-2">
+                    <span class="shrink-0 px-1.5 rounded" :class="it.level==='error'?'bg-red-100 text-red-800':(it.level==='todo'?'bg-rose-100 text-rose-800':'bg-amber-100 text-amber-800')" x-text="it.level==='error'?'błąd':(it.level==='todo'?'uzupełnij':'uwaga')"></span>
+                    <span><b x-text="it.text"></b> – <span x-text="it.msg"></span></span></li></template>
+                    <li x-show="!((ver||{}).issues||[]).length" class="text-emerald-700">✓ Brak uwag – każda liczba ma pokrycie w odpowiedziach wydziałów.</li></ul>
+                  <p class="text-[11px] text-slate-500 mt-1">Sprawdzane: każda liczba, kwota i data w treści odpowiedzi jest porównywana z tekstem odpowiedzi wydziałów; zdania merytoryczne bez [źr. W…] i znaczniki [[…]].</p>
+                </div>
                 <textarea x-show="mode==='edit'" x-model="dv.text" class="w-full h-[50vh] md:h-[420px] border rounded p-3 text-sm"></textarea>
                 <div x-show="mode==='anon'">
                   <div class="flex gap-2 mb-2 text-xs">
@@ -627,7 +647,7 @@
 function app(){return{
   tabs:[{id:'cal',label:'Kalendarz wniosków'},{id:'arch',label:'Archiwum i baza wiedzy'},{id:'rec',label:'Rozpoznawanie dokumentów'},{id:'anon',label:'Anonimizacja dokumentu'}],
   tab:'cal', view:'table', cfg:{statuses:{}}, items:[], years:[], year:'', hideDone:false, depts:[], busy:'', toast:'', dragOver:false,
-  cur:null, edit:{}, mode:'anon', dv:{text:'',spans:[]}, month:new Date(), archive:[], knowledge:[], archQ:'', cats:[], kView:null, docs:[], doc:null, forceVision:false, allReqs:[], selReq:'', kwDays:30, sa:{text:'',spans:null,result:''},
+  cur:null, edit:{}, mode:'anon', dv:{text:'',spans:[]}, month:new Date(), archive:[], knowledge:[], archQ:'', cats:[], kView:null, ver:null, docs:[], doc:null, forceVision:false, allReqs:[], selReq:'', kwDays:30, sa:{text:'',spans:null,result:''},
   async init(){ this.cfg=await (await fetch('/api/config')).json(); this.depts=await (await fetch('/api/departments')).json(); this.cats=await (await fetch('/api/anonymization-categories')).json();
     this.year=String(new Date().getFullYear()); await this.load(); if(!this.years.map(String).includes(this.year)) {this.year=''; await this.load();} this.loadArchive(); },
   async api(url,opt={}){ const r=await fetch(url,opt); if(!r.ok){let m=r.statusText; try{m=(await r.json()).detail}catch(e){} throw new Error(m)} return r.json() },
@@ -658,7 +678,7 @@ function app(){return{
   async open(id){ const r=await this.api('/api/requests/'+id); this.setCur(r); if(!(r.similar||[]).length){ const r2=await this.api('/api/requests/'+id+'/similar',{method:'POST'}); if(this.cur&&this.cur.id===id){ const k=this.dv; this.setCur(r2); this.dv=k } } },
   setCur(r){ this.cur=r; this.edit={lp:r.lp,number:r.number,received_date:r.received_date,initials:r.initials,extended_days:r.extended_days||0,
       answered_date:r.answered_date,requester:r.requester,subject:r.subject,summary:r.summary};
-    this.dv={text:r.draft||'', spans:(r.anon_spans||[]).map(s=>({...s,ok:s.ok||false}))}; this.mode='anon' },
+    this.dv={text:r.draft||'', spans:(r.anon_spans||[]).map(s=>({...s,ok:s.ok||false}))}; this.ver=r.verification||null; this.mode=(r.verification&&r.verification.counts&&r.verification.counts.error)?'check':'anon' },
   async patch(body){ const r=await this.api('/api/requests/'+this.cur.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const keepDv=this.dv; this.setCur(r); if(body.draft===undefined) this.dv=keepDv; await this.load(); return r },
   async saveEdit(){ const b={...this.edit}; b.extended_days=parseInt(b.extended_days||0); if(!b.answered_date) delete b.answered_date; await this.patch(b); this.say('Dane zatwierdzone') },
@@ -681,6 +701,10 @@ function app(){return{
     const pre=rg.cloneRange(); pre.selectNodeContents(el); pre.setEnd(rg.startContainer,rg.startOffset); const start=pre.toString().length; const end=start+rg.toString().length;
     o.spans=(o.spans||[]).filter(s=>s.end<=start||s.start>=end); o.spans.push({start,end,text:o.text.slice(start,end),category:'INNE',source:'urzędnik',reason:'zaznaczone ręcznie',ok:true});
     o.spans.sort((a,b)=>a.start-b.start); sel.removeAllRanges() },
+  async runCheck(){ try{ this.ver=await this.api('/api/requests/'+this.cur.id+'/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:this.dv.text})}); this.mode='check' }catch(e){ this.say('Błąd: '+e.message) } },
+  checkSegments(){ const text=this.dv.text||''; const all=((this.ver||{}).issues||[]).slice().sort((a,b)=>(a.kind==='źródło')-(b.kind==='źródło')||a.start-b.start);
+    const chosen=[]; for(const it of all){ if(!chosen.some(c=>c.start<it.end&&c.end>it.start)) chosen.push(it) } chosen.sort((a,b)=>a.start-b.start);
+    const out=[]; let p=0; for(const it of chosen){ if(it.start<p) continue; if(it.start>p) out.push({t:text.slice(p,it.start)}); out.push({t:text.slice(it.start,it.end),i:it}); p=it.end } if(p<text.length) out.push({t:text.slice(p)}); return out },
   async toAnon(){ if(this.mode==='anon') return; this.busy='Analizuję dane osobowe w treści…';
     try{ const r=await this.api('/api/requests/'+this.cur.id+'/anonymize/detect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:this.dv.text})});
       this.cur=r; this.dv={text:r.draft, spans:(r.anon_spans||[]).map(s=>({...s,ok:false}))}; this.mode='anon' }catch(e){this.say('Błąd: '+e.message)} this.busy='' },
