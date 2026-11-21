@@ -1,0 +1,31 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./db:/app/db
+      - ./data/departments.json:/app/data/departments.json:ro
+    expose:
+      - "8000"
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+  # --- DOCELOWO W URZĘDZIE (offline): odkomentuj i ustaw w .env OPENAI_BASE_URL=http://ollama:11434/v1, LLM_MODEL=SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M
+  # ollama:
+  #   image: ollama/ollama
+  #   restart: unless-stopped
+  #   volumes: [ "ollama:/root/.ollama" ]
+volumes:
+  caddy_data:
+  caddy_config:
+  # ollama:

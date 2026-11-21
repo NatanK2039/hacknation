@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b3d91"><meta name="apple-mobile-web-app-capable" content="yes">
+<title>Asystent UDIP · Urząd Miasta Bydgoszczy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{fontFamily:{sans:['Inter','system-ui','sans-serif']}}}}</script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+<style>
+  [x-cloak]{display:none!important}
+  .anon-text{white-space:pre-wrap;line-height:1.7}
+  .pii-prop{background:#d4d4d8;color:#3f3f46;border-radius:3px;cursor:pointer;padding:0 1px;outline:1px dashed #71717a}
+  .pii-ok{background:#111;color:#111;border-radius:3px;cursor:pointer;padding:0 1px}
+  .pii-ok:hover{color:#fff}
+  .mark-missing{background:#fee2e2;color:#991b1b;font-weight:600}
+  .u-overdue{background:#fee2e2}.u-today{background:#fecaca}.u-tomorrow{background:#ffedd5}.u-soon{background:#fef9c3}.u-done{background:#f4f4f5;color:#71717a}
+  .dot-overdue,.dot-today{background:#dc2626}.dot-tomorrow{background:#f97316}.dot-soon{background:#eab308}.dot-ok{background:#22c55e}.dot-done{background:#a1a1aa}
+  .drop{border:2px dashed #93c5fd}
+  .drop.over{background:#eff6ff;border-color:#2563eb}
+  /* ---- odświeżenie wizualne ---- */
+  body{background:#f4f6fa;font-feature-settings:"cv11","ss01";-webkit-font-smoothing:antialiased}
+  main .bg-white.border, main .bg-white.rounded-lg, .panel-card{border-color:#e6e9ef!important;border-radius:14px!important;box-shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.06)}
+  main section h1{font-size:1.5rem;font-weight:700;letter-spacing:-.01em;color:#0f1f3d}
+  .drop{border:2px dashed #b9c8e6;border-radius:14px!important;background:linear-gradient(180deg,#fff, #f7f9fd)}
+  table thead th{font-weight:600;letter-spacing:.04em;font-size:11px;color:#64748b;background:#f8fafc}
+  table tbody tr{transition:background .15s}
+  table tbody td{border-color:#eef1f5}
+  .u-overdue td:first-child,.u-today td:first-child{box-shadow:inset 4px 0 0 #dc2626}
+  .u-tomorrow td:first-child{box-shadow:inset 4px 0 0 #f97316}
+  .u-soon td:first-child{box-shadow:inset 4px 0 0 #eab308}
+  .u-overdue{background:#fff5f5}.u-today{background:#fff1f1}.u-tomorrow{background:#fff8f1}.u-soon{background:#fffdf0}.u-done{background:#fafafa;color:#94a3b8}
+  .bg-\[\#00305f\]{background:#0b3d91!important;transition:background .15s, transform .05s}
+  .bg-\[\#00305f\]:hover{background:#0a3480!important}
+  button:active{transform:translateY(1px)}
+  button.border, a.border, label.border{border-color:#d9dee7;border-radius:10px!important}
+  input.border, select.border, textarea.border{border-color:#d9dee7!important;border-radius:9px!important}
+  input:focus, select:focus, textarea:focus{outline:none;border-color:#3b6fd8!important;box-shadow:0 0 0 3px rgba(59,111,216,.15)}
+  .nav-item{display:flex;align-items:center;gap:.75rem;width:100%;padding:.6rem .8rem;border-radius:10px;font-size:.9rem;color:#c9d6f2;transition:all .15s;text-align:left}
+  .nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+  .nav-item.active{background:#fff;color:#0b3d91;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+  .nav-item svg{width:20px;height:20px;flex-shrink:0}
+  .pill{display:inline-flex;align-items:center;gap:.35rem;padding:.15rem .6rem;border-radius:999px;font-size:11.5px;font-weight:500;white-space:nowrap}
+  .st-nowy{background:#eef2f7;color:#475569}.st-w_wydziale{background:#e0ecff;color:#1d4ed8}.st-kwerenda{background:#f3e8ff;color:#7e22ce}
+  .st-przygotowana{background:#dcfce7;color:#15803d}.st-wyslana{background:#f1f5f9;color:#64748b}
+  .kpi{position:relative;overflow:hidden}
+  .kpi .ico{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center}
+  .step{display:flex;align-items:center;gap:.5rem;font-size:12px;color:#94a3b8;white-space:nowrap}
+  .step .num{width:24px;height:24px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-weight:600;border:2px solid #cbd5e1;background:#fff;font-size:11px}
+  .step.done{color:#15803d}.step.done .num{background:#16a34a;border-color:#16a34a;color:#fff}
+  .step.now{color:#0b3d91;font-weight:600}.step.now .num{border-color:#0b3d91;color:#0b3d91;box-shadow:0 0 0 4px rgba(11,61,145,.12)}
+  .step-line{flex:1;height:2px;background:#e2e8f0;min-width:14px}.step-line.done{background:#16a34a}
+  h3.font-semibold{color:#0f1f3d}
+  input[type=file]{font-size:12px;color:#64748b}
+  input[type=file]::file-selector-button{border:1px solid #d9dee7;background:#fff;border-radius:8px;padding:.35rem .7rem;margin-right:.6rem;color:#0f1f3d;font-weight:500;cursor:pointer}
+  input[type=file]::file-selector-button:hover{background:#f1f5f9}
+  .nav-item span{white-space:nowrap}
+  .mnav{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 6px;font-size:10.5px;color:#64748b}
+  .mnav svg{width:22px;height:22px}.mnav.active{color:#0b3d91;font-weight:600}
+  @media (max-width:767px){
+    main section h1{font-size:1.25rem}
+    .drop{flex-wrap:wrap}
+    .m-full{position:fixed!important;inset:0!important;max-width:none!important;width:100%!important}
+  }
+  ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#cfd6e2;border-radius:10px;border:2px solid #f4f6fa}
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800" x-data="app()" x-init="init()">
+
+<!-- SIDEBAR -->
+<aside class="hidden lg:flex fixed inset-y-0 left-0 w-64 bg-gradient-to-b from-[#0b3d91] to-[#062a66] text-white flex-col z-30">
+  <div class="px-5 pt-6 pb-5 border-b border-white/10">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-6 h-6"><path d="M4 20V9l8-5 8 5v11"/><path d="M9 20v-6h6v6"/><path d="M2 20h20"/></svg></div>
+      <div><div class="font-semibold leading-tight">Asystent UDIP</div><div class="text-[11px] text-blue-200 leading-tight">Urząd Miasta Bydgoszczy</div></div>
+    </div>
+  </div>
+  <nav class="p-3 space-y-1 flex-1">
+    <div class="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wider text-blue-300/80">Praca</div>
+    <button class="nav-item" :class="tab==='cal'&&'active'" @click="tab='cal'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+      <span class="flex-1">Kalendarz wniosków</span><span x-show="kpi.urgent+kpi.tomorrow" class="text-[10px] font-bold bg-red-500 text-white rounded-full px-1.5" x-text="kpi.urgent+kpi.tomorrow"></span></button>
+    <button class="nav-item" :class="tab==='rec'&&'active'" @click="tab='rec'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7V5a1 1 0 011-1h2M17 4h2a1 1 0 011 1v2M20 17v2a1 1 0 01-1 1h-2M7 20H5a1 1 0 01-1-1v-2"/><path d="M8 9h8M8 12h8M8 15h5"/></svg>
+      <span>Rozpoznawanie pism</span></button>
+    <button class="nav-item" :class="tab==='anon'&&'active'" @click="tab='anon'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 3v6c0 4.5-3.4 8.4-8 9-4.6-.6-8-4.5-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg>
+      <span>Anonimizacja</span></button>
+    <div class="px-3 pt-4 pb-1 text-[10px] uppercase tracking-wider text-blue-300/80">Wiedza</div>
+    <button class="nav-item" :class="tab==='arch'&&'active'" @click="tab='arch'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v4H4zM5 8v11a1 1 0 001 1h12a1 1 0 001-1V8"/><path d="M10 12h4"/></svg>
+      <span>Archiwum i baza wiedzy</span></button>
+  </nav>
+  <div class="p-4 m-3 rounded-xl bg-white/10 text-xs space-y-2">
+    <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full" :class="cfg.ai?'bg-emerald-400':'bg-red-400'"></span>
+      <span x-text="cfg.ai ? 'Asystent AI aktywny' : 'AI wyłączone'"></span></div>
+    <div class="text-blue-200" x-show="cfg.ai" x-text="cfg.provider+' · '+cfg.model"></div>
+    <div class="flex items-center gap-2 text-blue-100 pt-1 border-t border-white/10"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M3 3l18 18M10.6 5.1A10 10 0 0122 12a10 10 0 01-1.6 2.6M6.6 6.6A10 10 0 002 12s3.5 7 10 7a9.6 9.6 0 004.4-1.1"/></svg>
+      <span>Nic nie jest wysyłane automatycznie. Decyzję zawsze podejmuje urzędnik.</span></div>
+  </div>
+</aside>
+
+
+<!-- MOBILE TOP BAR -->
+<div class="lg:hidden sticky top-0 z-30 bg-[#0b3d91] text-white px-4 py-3 flex items-center gap-3 shadow" style="padding-top:max(.75rem,env(safe-area-inset-top))">
+  <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-5 h-5"><path d="M4 20V9l8-5 8 5v11"/><path d="M9 20v-6h6v6"/><path d="M2 20h20"/></svg></div>
+  <div class="flex-1 min-w-0"><div class="font-semibold leading-tight text-[15px]">Asystent UDIP</div><div class="text-[11px] text-blue-200 leading-tight truncate">Urząd Miasta Bydgoszczy</div></div>
+  <span class="flex items-center gap-1.5 text-[11px] bg-white/10 rounded-full px-2 py-1"><span class="w-2 h-2 rounded-full" :class="cfg.ai?'bg-emerald-400':'bg-red-400'"></span><span x-text="cfg.ai?'AI':'AI off'"></span></span>
+</div>
+<!-- MOBILE BOTTOM NAV -->
+<nav class="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 grid grid-cols-4" style="padding-bottom:env(safe-area-inset-bottom)">
+  <button class="mnav" :class="tab==='cal'&&'active'" @click="tab='cal'"><span class="relative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+    <span x-show="kpi.urgent+kpi.tomorrow" class="absolute -top-1 -right-2 text-[9px] font-bold bg-red-500 text-white rounded-full px-1" x-text="kpi.urgent+kpi.tomorrow"></span></span><span>Wnioski</span></button>
+  <button class="mnav" :class="tab==='rec'&&'active'" @click="tab='rec'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7V5a1 1 0 011-1h2M17 4h2a1 1 0 011 1v2M20 17v2a1 1 0 01-1 1h-2M7 20H5a1 1 0 01-1-1v-2"/><path d="M8 9h8M8 12h8M8 15h5"/></svg><span>Pisma</span></button>
+  <button class="mnav" :class="tab==='anon'&&'active'" @click="tab='anon'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 3v6c0 4.5-3.4 8.4-8 9-4.6-.6-8-4.5-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg><span>Anonimizacja</span></button>
+  <button class="mnav" :class="tab==='arch'&&'active'" @click="tab='arch'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v4H4zM5 8v11a1 1 0 001 1h12a1 1 0 001-1V8"/><path d="M10 12h4"/></svg><span>Archiwum</span></button>
+</nav>
+<main class="lg:ml-64 px-4 sm:px-6 lg:px-8 py-5 lg:py-7 pb-28 lg:pb-7 max-w-[1600px]">
+
+<!-- ================= KALENDARZ ================= -->
+<section x-show="tab==='cal'" x-cloak>
+  <div class="mb-5">
+    <div class="text-sm text-slate-500" x-text="greeting()"></div>
+    <h1>Kalendarz wniosków</h1>
+  </div>
+  <div class="flex flex-wrap items-center gap-3 mb-4">
+    <select x-model="year" @change="load()" x-effect="years; $nextTick(()=>$el.value=year)" class="border rounded px-2 py-1.5 text-sm bg-white">
+      <option value="">Wszystkie lata</option>
+      <template x-for="y in years"><option :value="y" x-text="y"></option></template>
+    </select>
+    <div class="flex border rounded overflow-hidden text-sm bg-white">
+      <button class="px-3 py-1.5" :class="view==='table'?'bg-slate-800 text-white':''" @click="view='table'">Tabela</button>
+      <button class="px-3 py-1.5" :class="view==='month'?'bg-slate-800 text-white':''" @click="view='month'">Miesiąc</button>
+    </div>
+    <label class="flex items-center gap-1 text-sm"><input type="checkbox" x-model="hideDone"> ukryj wysłane</label>
+    <div class="ml-auto hidden xl:flex items-center gap-3 text-xs">
+      <span class="flex items-center gap-1"><i class="w-3 h-3 rounded-full dot-overdue inline-block"></i>po terminie / dziś</span>
+      <span class="flex items-center gap-1"><i class="w-3 h-3 rounded-full dot-tomorrow inline-block"></i>jutro (nast. dzień roboczy)</span>
+      <span class="flex items-center gap-1"><i class="w-3 h-3 rounded-full dot-soon inline-block"></i>≤ 3 dni</span>
+      <span class="flex items-center gap-1"><i class="w-3 h-3 rounded-full dot-ok inline-block"></i>w terminie</span>
+      <span class="flex items-center gap-1"><i class="w-3 h-3 rounded-full dot-done inline-block"></i>wysłane</span>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-5">
+    <div class="bg-white border p-4 kpi flex items-center gap-3"><div class="ico bg-blue-50 text-blue-700"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><path d="M9 12h6M9 16h6M7 3h7l5 5v12a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z"/></svg></div>
+      <div><div class="text-xs text-slate-500">Aktywne wnioski</div><div class="text-2xl font-bold text-slate-900" x-text="kpi.active"></div></div></div>
+    <div class="bg-white border p-4 kpi flex items-center gap-3" :class="kpi.urgent&&'ring-1 ring-red-200'"><div class="ico bg-red-50 text-red-600"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+      <div><div class="text-xs text-red-600">Termin dziś / po terminie</div><div class="text-2xl font-bold text-red-600" x-text="kpi.urgent"></div></div></div>
+    <div class="bg-white border p-4 kpi flex items-center gap-3"><div class="ico bg-orange-50 text-orange-600"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg></div>
+      <div><div class="text-xs text-orange-600">Termin w nast. dniu roboczym</div><div class="text-2xl font-bold text-orange-600" x-text="kpi.tomorrow"></div></div></div>
+    <div class="bg-white border p-4 kpi flex items-center gap-3"><div class="ico bg-purple-50 text-purple-700"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><path d="M12 8v4l2 2M3 12a9 9 0 1018 0 9 9 0 00-18 0z"/><path d="M12 3v2"/></svg></div>
+      <div><div class="text-xs text-slate-500">W kwerendzie</div><div class="text-2xl font-bold text-slate-900" x-text="kpi.kw"></div></div></div>
+    <div class="bg-white border p-4 kpi flex items-center gap-3"><div class="ico bg-emerald-50 text-emerald-700"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><path d="M5 13l4 4L19 7"/></svg></div>
+      <div><div class="text-xs text-slate-500">Odpowiedzi wysłane</div><div class="text-2xl font-bold text-slate-900" x-text="kpi.done"></div></div></div>
+  </div>
+
+  <!-- WYMAGA UWAGI -->
+  <div x-show="attention.length" class="mb-5">
+    <div class="flex items-center gap-2 mb-2"><h2 class="font-semibold text-slate-900">Wymaga uwagi</h2><span class="text-xs text-slate-500">najbliższe terminy – zacznij od tych spraw</span></div>
+    <div class="grid md:grid-cols-2 xl:grid-cols-4 gap-3">
+      <template x-for="r in attention" :key="'a'+r.id"><button @click="open(r.id)" class="text-left bg-white border p-4 hover:shadow-md transition rounded-[14px] relative overflow-hidden" style="border-color:#e6e9ef">
+        <div class="absolute left-0 top-0 bottom-0 w-1" :class="'dot-'+r.urgency"></div>
+        <div class="flex items-center gap-2 mb-1"><span class="pill" :class="r.urgency==='overdue'?'bg-red-100 text-red-700':(r.urgency==='today'?'bg-red-100 text-red-700':(r.urgency==='tomorrow'?'bg-orange-100 text-orange-700':'bg-yellow-100 text-yellow-800'))"
+          x-text="r.days_left<0?('po terminie '+(-r.days_left)+' d.'):(r.days_left===0?'termin dziś':(r.urgency==='tomorrow'?'nast. dzień roboczy':'za '+r.days_left+' dni'))"></span>
+          <span class="text-[11px] text-slate-400 font-mono" x-text="r.number"></span></div>
+        <div class="font-medium text-slate-900 leading-snug line-clamp-2" x-text="r.subject"></div>
+        <div class="text-xs text-slate-500 mt-1 flex items-center justify-between"><span x-text="'termin '+fmt(r.deadline)"></span><span class="pill" :class="'st-'+r.status" x-text="statusShort(r.status)"></span></div>
+      </button></template>
+    </div>
+  </div>
+
+  <!-- UPLOAD -->
+  <div class="drop rounded-lg p-4 mb-4 bg-white flex items-center gap-4" :class="dragOver&&'over'"
+       @dragover.prevent="dragOver=true" @dragleave="dragOver=false" @drop.prevent="dragOver=false; uploadRequest($event.dataTransfer.files[0])">
+    <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-6 h-6"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg></div>
+    <div class="flex-1">
+      <div class="font-semibold text-slate-900"><span class="hidden md:inline">Nowy wniosek – przeciągnij plik PDF, Word, skan lub zdjęcie pisma</span><span class="md:hidden">Dodaj nowy wniosek</span></div>
+      <div class="text-xs text-slate-500 hidden md:block">Asystent odczyta treść (także OCR), wyciągnie dane, policzy termin, znajdzie podobne sprawy i zaproponuje wydziały.</div>
+    </div>
+    <div class="flex gap-2 w-full md:w-auto">
+    <label class="md:hidden flex-1 text-center bg-purple-700 text-white px-4 py-2 rounded cursor-pointer text-sm">📷 Zdjęcie pisma
+      <input type="file" accept="image/*" capture="environment" class="hidden" @change="uploadRequest($event.target.files[0]); $event.target.value=''"></label>
+    <label class="flex-1 md:flex-none text-center bg-[#00305f] text-white px-4 py-2 rounded cursor-pointer text-sm">Wybierz plik
+      <input type="file" class="hidden" accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,image/*" @change="uploadRequest($event.target.files[0]); $event.target.value=''"></label></div>
+  </div>
+  <div x-show="busy" class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm flex items-center gap-2">
+    <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity=".25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="4" fill="none"/></svg>
+    <span x-text="busy"></span>
+  </div>
+
+  <!-- TABELA -->
+  <div x-show="view==='table'" class="md:hidden space-y-2">
+    <template x-for="r in filtered" :key="'m'+r.id"><button @click="open(r.id)" class="w-full text-left bg-white border rounded-[14px] p-3.5 relative overflow-hidden" style="border-color:#e6e9ef">
+      <div class="absolute left-0 top-0 bottom-0 w-1" :class="'dot-'+r.urgency"></div>
+      <div class="flex items-center gap-2"><span class="text-[11px] font-mono text-slate-400" x-text="r.number"></span>
+        <span class="ml-auto text-xs font-semibold" :class="r.urgency==='overdue'||r.urgency==='today'?'text-red-600':(r.urgency==='tomorrow'?'text-orange-600':'text-slate-600')"
+          x-text="r.status==='wyslana'?'✓ wysłano':(r.days_left<0?('po terminie '+(-r.days_left)+' d.'):(r.days_left===0?'DZIŚ':r.days_left+' dni'))"></span></div>
+      <div class="font-medium text-slate-900 mt-0.5 leading-snug" x-text="r.subject"></div>
+      <div class="text-xs text-slate-500 mt-0.5 truncate" x-text="r.requester||''"></div>
+      <div class="flex items-center gap-2 mt-2 text-xs"><span class="pill" :class="'st-'+r.status" x-text="statusShort(r.status)"></span>
+        <span class="text-slate-500" x-text="'termin '+fmt(r.deadline)"></span><span x-show="r.extended_days" class="text-purple-700" x-text="'+'+r.extended_days+' d.'"></span></div>
+    </button></template>
+    <div x-show="!filtered.length" class="text-center text-slate-400 py-6">Brak wniosków</div>
+  </div>
+  <div x-show="view==='table'" class="hidden md:block bg-white rounded-lg border overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-100 text-slate-600 text-xs uppercase">
+        <tr><th class="px-3 py-2.5 text-left">Lp.</th><th class="px-3 py-2.5 text-left">Nr wniosku</th><th class="px-3 py-2.5 text-left">Data wpływu</th>
+            <th class="px-3 py-2.5 text-left w-1/3">Temat (skrócony opis)</th><th class="px-3 py-2.5 text-left">Wnioskodawca</th><th class="px-3 py-2.5">Inicjały</th>
+            <th class="px-3 py-2.5 text-left">Termin odp.</th><th class="px-3 py-2.5">Pozostało</th><th class="px-3 py-2.5 text-left">Status</th><th class="px-3 py-2.5 text-left">Data udzielenia</th></tr>
+      </thead>
+      <tbody>
+        <template x-for="r in filtered" :key="r.id">
+          <tr class="border-t cursor-pointer hover:brightness-95" :class="'u-'+r.urgency" @click="open(r.id)">
+            <td class="px-3 py-2.5" x-text="r.lp"></td>
+            <td class="px-3 py-2.5 font-mono text-xs whitespace-nowrap" x-text="r.number"></td>
+            <td class="px-3 py-2.5" x-text="fmt(r.received_date)"></td>
+            <td class="px-3 py-2.5"><div class="font-medium" x-text="r.subject"></div><div class="text-xs text-slate-500 line-clamp-1" x-text="r.summary"></div></td>
+            <td class="px-3 py-2.5 text-xs" x-text="r.requester||'—'"></td>
+            <td class="px-3 py-2.5 text-center" x-text="r.initials||'—'"></td>
+            <td class="px-3 py-2.5"><div class="font-semibold" x-text="fmt(r.deadline)"></div><div class="text-[10px] text-slate-500" x-show="r.status!=='wyslana'" x-text="'wydział do: '+fmt(r.dept_deadline)"></div></td>
+            <td class="px-3 py-2.5 text-center"><span class="inline-flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-full inline-block" :class="'dot-'+r.urgency"></i>
+              <span x-text="r.status==='wyslana'?'✓':(r.days_left<0?(r.days_left+' dni'):(r.days_left===0?'DZIŚ':r.days_left+' dni'))"></span></span></td>
+            <td class="px-3 py-2.5 text-xs"><span class="pill" :class="'st-'+r.status" x-text="statusShort(r.status)"></span><span x-show="r.extended_days" class="ml-1 text-purple-700" x-text="'+'+r.extended_days+' dni'"></span></td>
+            <td class="px-3 py-2.5 text-xs" x-text="fmt(r.answered_date)||'—'"></td>
+          </tr>
+        </template>
+        <tr x-show="!filtered.length"><td colspan="10" class="p-6 text-center text-slate-400">Brak wniosków</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- MIESIĄC -->
+  <div x-show="view==='month'" class="bg-white rounded-lg border p-3">
+    <div class="flex items-center gap-3 mb-2">
+      <button class="px-2 border rounded" @click="shiftMonth(-1)">‹</button>
+      <div class="font-semibold w-44 text-center" x-text="monthLabel()"></div>
+      <button class="px-2 border rounded" @click="shiftMonth(1)">›</button>
+      <span class="text-xs text-slate-500">Na kalendarzu: terminy udzielenia odpowiedzi</span>
+    </div>
+    <div class="grid grid-cols-7 text-xs text-slate-500 mb-1"><template x-for="d in ['Pn','Wt','Śr','Cz','Pt','Sb','Nd']"><div class="p-1" x-text="d"></div></template></div>
+    <div class="grid grid-cols-7 gap-1">
+      <template x-for="c in monthCells()">
+        <div class="min-h-[56px] md:min-h-[92px] border rounded p-0.5 md:p-1 text-[10px] md:text-xs" :class="[c.other?'bg-slate-50 text-slate-300':'', c.today?'ring-2 ring-blue-500':'']">
+          <div class="font-semibold" x-text="c.day"></div>
+          <template x-for="r in c.items"><div @click="open(r.id)" class="mt-0.5 px-1 rounded truncate cursor-pointer text-white"
+              :class="'dot-'+r.urgency" x-text="r.number.split('.').slice(-2).join('.')+' '+r.subject"></div></template>
+        </div>
+      </template>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ARCHIWUM ================= -->
+<section x-show="tab==='arch'" x-cloak>
+  <div class="grid md:grid-cols-3 gap-5">
+    <div class="md:col-span-2">
+      <div class="flex flex-wrap gap-2 mb-3 items-center">
+        <h1 class="mr-3 w-full sm:w-auto">Archiwum odpowiedzi</h1>
+        <input x-model="archQ" @keydown.enter="loadArchive()" placeholder="Szukaj w archiwum (np. wycinka drzew, promocja)…" class="border rounded px-3 py-1.5 text-sm flex-1 bg-white">
+        <button @click="loadArchive()" class="bg-slate-800 text-white px-3 py-1.5 rounded text-sm">Szukaj</button>
+      </div>
+      <div class="space-y-2">
+        <template x-for="a in archive" :key="a.id">
+          <details class="bg-white border rounded p-3">
+            <summary class="cursor-pointer flex gap-3 items-center"><span class="text-xs text-slate-500" x-text="fmt(a.received_date)"></span>
+              <span class="font-medium" x-text="a.subject"></span><span class="ml-auto text-xs bg-slate-100 px-2 rounded" x-text="a.department"></span></summary>
+            <div class="mt-2 text-sm"><div class="text-xs font-semibold text-slate-500">WNIOSEK</div><p x-text="a.request_text"></p>
+              <div class="text-xs font-semibold text-slate-500 mt-2">ODPOWIEDŹ</div><p class="whitespace-pre-wrap" x-text="a.answer_text"></p>
+              <button class="text-xs text-red-600 mt-2" @click="delArchive(a.id)">usuń z archiwum</button></div>
+          </details>
+        </template>
+      </div>
+    </div>
+    <div class="space-y-4">
+      <div class="bg-white border rounded p-4 panel-card">
+        <h2 class="font-semibold mb-2">Dodaj archiwalną sprawę</h2>
+        <p class="text-xs text-slate-500 mb-2">Asystent „uczy się” na wgranych sprawach – nowe wnioski są od razu porównywane z archiwum.</p>
+        <form @submit.prevent="addArchive($event)" class="space-y-2 text-sm">
+          <input name="subject" placeholder="Temat (opcjonalnie – AI uzupełni)" class="border rounded px-2 py-1 w-full">
+          <div class="flex gap-2"><input type="date" name="received_date" class="border rounded px-2 py-1 flex-1">
+            <select name="department" class="border rounded px-2 py-1 flex-1"><option value="">wydział…</option><template x-for="d in depts"><option :value="d.code" x-text="d.code"></option></template></select></div>
+          <label class="block text-xs">Plik wniosku <input type="file" name="request_file" class="text-xs"></label>
+          <label class="block text-xs">Plik odpowiedzi <input type="file" name="answer_file" class="text-xs"></label>
+          <textarea name="request_text" placeholder="…lub wklej treść wniosku" class="border rounded px-2 py-1 w-full h-16"></textarea>
+          <textarea name="answer_text" placeholder="…i treść odpowiedzi" class="border rounded px-2 py-1 w-full h-16"></textarea>
+          <button class="bg-[#00305f] text-white px-3 py-1.5 rounded w-full">Dodaj do archiwum</button>
+        </form>
+      </div>
+      <div class="bg-white border rounded p-4 panel-card">
+        <h2 class="font-semibold mb-2">Akty prawne i zarządzenia</h2>
+        <form @submit.prevent="addKnowledge($event)" class="space-y-2 text-sm">
+          <select name="kind" class="border rounded px-2 py-1 w-full"><option>ustawa</option><option>aktualizacja ustawy</option><option>zarządzenie</option><option>wzór pisma</option></select>
+          <input type="file" name="file" required class="text-xs">
+          <button class="bg-slate-800 text-white px-3 py-1.5 rounded w-full">Wgraj dokument</button>
+        </form>
+        <ul class="mt-2 text-xs space-y-1"><template x-for="k in knowledge"><li class="flex gap-1">📘 <a href="#" class="text-blue-700 hover:underline" @click.prevent="showK(k.id)" x-text="k.title"></a> <span class="text-slate-400" x-text="'('+k.kind+', '+Math.max(1,Math.round(k.size/1000))+' tys. zn.)'"></span><button class="ml-auto text-red-500" @click="delK(k.id)" title="usuń">×</button></li></template></ul>
+        <p class="text-[11px] text-slate-500 mt-2">Treść dokumentów jest uwzględniana przy generowaniu projektów pism.</p>
+      </div>
+      <div class="bg-white border rounded p-4 panel-card">
+        <h2 class="font-semibold mb-2">Komórki organizacyjne (<span x-text="depts.length"></span>)</h2>
+        <div class="max-h-64 overflow-y-auto text-xs space-y-1"><template x-for="d in depts"><div><b x-text="d.code"></b> – <a :href="d.url||null" target="_blank" class="hover:underline" x-text="d.name"></a></div></template></div>
+        <p class="text-[11px] text-slate-500 mt-1">Źródło: BIP UM Bydgoszcz (struktura urzędu).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ================= ROZPOZNAWANIE ================= -->
+<section x-show="tab==='rec'" x-cloak x-init="$watch('tab', v => v==='rec' && loadDocs())">
+  <div class="flex flex-wrap items-center gap-3 mb-1"><h1>Rozpoznawanie pism</h1>
+    <button class="sm:ml-auto border bg-white px-3 py-1.5 rounded text-sm" @click="importArchive()">⇄ Importuj do archiwum<span class="hidden sm:inline"> (paruj wniosek + odpowiedź po sygnaturze)</span></button></div>
+  <p class="text-sm text-slate-500 mb-3">Wnioski, odpowiedzi, kwerendy i wezwania – Word, PDF, skany i <b>pisma odręczne</b>. Każda strona jest rozpoznawana automatycznie dobraną metodą:
+    <span class="px-1.5 rounded bg-slate-200 text-xs">warstwa tekstowa / Word</span> → <span class="px-1.5 rounded bg-blue-100 text-blue-800 text-xs">OCR Tesseract</span> →
+    <span class="px-1.5 rounded bg-purple-100 text-purple-800 text-xs">AI-vision</span> (skany, pismo odręczne, pieczątki wpływu).</p>
+  <div class="drop rounded-lg p-4 mb-3 bg-white flex items-center gap-4" :class="dragOver&&'over'"
+       @dragover.prevent="dragOver=true" @dragleave="dragOver=false" @drop.prevent="dragOver=false; recognizeFiles($event.dataTransfer.files)">
+    <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-6 h-6"><path d="M4 7V5a1 1 0 011-1h2M17 4h2a1 1 0 011 1v2M20 17v2a1 1 0 01-1 1h-2M7 20H5a1 1 0 01-1-1v-2"/><path d="M8 9h8M8 12h8M8 15h5"/></svg></div>
+    <div class="flex-1"><div class="font-semibold"><span class="hidden md:inline">Przeciągnij pliki (wiele naraz) – PDF, DOCX, JPG/PNG</span><span class="md:hidden">Dodaj pisma do rozpoznania</span></div>
+      <div class="text-xs text-slate-500">Sygnatura (BKS.IV.1431.N.RRRR), typ pisma, data i nr wpływu z pieczątki kancelarii są odczytywane automatycznie.</div></div>
+    <label class="md:hidden bg-purple-700 text-white px-4 py-2 rounded cursor-pointer text-sm flex items-center gap-2">📷 Zrób zdjęcie pisma
+      <input type="file" accept="image/*" capture="environment" class="hidden" @change="recognizeFiles($event.target.files); $event.target.value=''"></label>
+    <label class="text-xs flex items-center gap-1"><input type="checkbox" x-model="forceVision"> wymuś AI-vision</label>
+    <label class="bg-[#00305f] text-white px-4 py-2 rounded cursor-pointer text-sm">Wybierz pliki
+      <input type="file" multiple class="hidden" accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.tif,.tiff,image/*" @change="recognizeFiles($event.target.files); $event.target.value=''"></label>
+  </div>
+  <div class="md:hidden space-y-2">
+    <template x-for="d in docs" :key="'md'+d.id"><button @click="openDoc(d.id)" class="w-full text-left bg-white border rounded-[14px] p-3.5" style="border-color:#e6e9ef">
+      <div class="flex items-center gap-2"><span class="text-xs px-2 py-0.5 rounded" :class="typeCls(d.doc_type)" x-text="d.doc_type_label"></span>
+        <span x-show="d.handwritten" class="text-[10px] px-1.5 rounded bg-amber-100 text-amber-800">✍ odręczne</span>
+        <span class="ml-auto text-xs text-slate-500" x-text="d.conf!=null?Math.round(d.conf)+'%':''"></span></div>
+      <div class="font-mono text-xs mt-1" x-text="d.signature||'— brak sygnatury'"></div>
+      <div class="text-xs text-slate-500 truncate" x-text="d.filename"></div>
+      <div class="flex flex-wrap gap-1 mt-1.5"><template x-for="m in (d.methods||[])"><span class="text-[10px] px-1.5 rounded" :class="methCls(m)" x-text="m"></span></template>
+        <span class="text-[10px] text-slate-500" x-show="d.received_date" x-text="'wpływ '+fmt(d.received_date)"></span></div>
+    </button></template>
+    <div x-show="!docs.length" class="text-center text-slate-400 py-6">Brak rozpoznanych dokumentów</div>
+  </div>
+  <div class="hidden md:block bg-white rounded-lg border overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-100 text-slate-600 text-xs uppercase"><tr>
+        <th class="px-3 py-2.5 text-left">Plik</th><th class="px-3 py-2.5 text-left">Typ pisma</th><th class="px-3 py-2.5 text-left">Sygnatura</th><th class="px-3 py-2.5 text-left">Rozpoznanie</th>
+        <th class="px-3 py-2.5">Pewność</th><th class="px-3 py-2.5 text-left">Wpływ</th><th class="px-3 py-2.5 text-left">Sprawa w kalendarzu</th><th class="px-3 py-2.5 text-left">Status</th></tr></thead>
+      <tbody>
+        <template x-for="d in docs" :key="d.id"><tr class="border-t hover:bg-slate-50 cursor-pointer" @click="openDoc(d.id)">
+          <td class="px-3 py-2.5 text-xs max-w-[260px] truncate" :title="d.filename" x-text="d.filename"></td>
+          <td class="px-3 py-2.5"><span class="text-xs px-2 py-0.5 rounded" :class="typeCls(d.doc_type)" x-text="d.doc_type_label"></span></td>
+          <td class="px-3 py-2.5 font-mono text-xs whitespace-nowrap" x-text="d.signature||'—'"></td>
+          <td class="px-3 py-2.5"><div class="flex flex-wrap gap-1"><template x-for="m in (d.methods||[])"><span class="text-[10px] px-1.5 rounded" :class="methCls(m)" x-text="m"></span></template>
+            <span x-show="d.handwritten" class="text-[10px] px-1.5 rounded bg-amber-100 text-amber-800">✍ odręczne</span>
+            <span class="text-[10px] text-slate-400" x-text="d.n_pages+' str.'"></span></div></td>
+          <td class="px-3 py-2.5 text-center text-xs" x-text="d.conf!=null?Math.round(d.conf)+'%':'—'"></td>
+          <td class="px-3 py-2.5 text-xs"><div x-text="fmt(d.received_date)||'—'"></div><div class="text-slate-400" x-text="d.entry_number?('nr '+d.entry_number):''"></div></td>
+          <td class="px-3 py-2.5 text-xs" x-text="d.matched_request ? ('✓ '+d.matched_request.subject) : '—'"></td>
+          <td class="px-3 py-2.5 text-xs" x-text="d.status"></td>
+        </tr></template>
+        <tr x-show="!docs.length"><td colspan="8" class="p-6 text-center text-slate-400">Brak rozpoznanych dokumentów</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ================= ANONIMIZACJA (test) ================= -->
+<section x-show="tab==='anon'" x-cloak>
+  <h1 class="mb-1">Anonimizacja dokumentu</h1>
+  <p class="text-sm text-slate-500 mb-4">Wgraj dowolny dokument. <span class="pii-prop">Szare</span> = propozycja do ukrycia (kliknij, aby zaakceptować) → <span class="pii-ok" style="color:#fff">czarne</span> = zaakceptowane. Zaznacz myszą dowolny tekst i kliknij „Ukryj zaznaczenie”, aby dodać własny fragment.</p>
+  <div class="flex flex-wrap gap-2 mb-3 items-center">
+    <label class="bg-[#00305f] text-white px-4 py-2 rounded cursor-pointer text-sm">Wgraj plik (PDF/Word)
+      <input type="file" class="hidden" @change="anonUpload($event.target.files[0]); $event.target.value=''"></label>
+    <span class="text-sm text-slate-400">lub</span>
+    <button class="border px-3 py-2 rounded text-sm bg-white" @click="anonPaste()">Analizuj wklejony tekst</button>
+  </div>
+  <textarea x-show="!sa.spans" x-model="sa.text" class="w-full h-48 border rounded p-3 text-sm" placeholder="Wklej tekst zawierający dane osobowe…"></textarea>
+  <template x-if="sa.spans">
+    <div>
+      <details class="mb-2 text-xs bg-slate-50 border rounded p-2"><summary class="cursor-pointer font-semibold">Lista danych podlegających anonimizacji – UMB (28 kategorii) · wykryto: <span x-text="(sa.spans||[]).length"></span></summary>
+        <div class="grid md:grid-cols-2 gap-x-4 mt-1"><template x-for="c in cats"><div class="flex gap-1" :class="catCount(sa,c.code)?'font-semibold text-slate-900':'text-slate-500'"><span x-text="catCount(sa,c.code)?'●':'○'"></span><span x-text="c.label"></span><span x-show="catCount(sa,c.code)" x-text="'('+catCount(sa,c.code)+')'"></span></div></template></div></details>
+      <div class="flex flex-wrap gap-2 mb-2 text-sm">
+        <button class="border px-3 py-1 rounded bg-white" @click="acceptAll(sa)">Akceptuj wszystkie</button>
+        <button class="border px-3 py-1 rounded bg-white" @click="hideSelection(sa,'saText')">Ukryj zaznaczenie</button>
+        <button class="bg-emerald-700 text-white px-3 py-1 rounded" @click="anonApplyStandalone()">Zatwierdź i zanonimizuj</button>
+        <button class="border px-3 py-1 rounded bg-white" @click="sa={text:'',spans:null,result:''}">Wyczyść</button>
+        <span class="ml-auto text-xs text-slate-500" x-text="stats(sa)"></span>
+      </div>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="bg-white border rounded p-4 text-sm anon-text" x-ref="saText"><template x-for="seg in segments(sa.text, sa.spans)">
+          <span :class="seg.s ? (seg.s.ok?'pii-ok':'pii-prop') : ''" :title="seg.s ? (catLabel(seg.s.category)+' · źródło: '+seg.s.source+(seg.s.reason?' · '+seg.s.reason:'')) : ''"
+                @click="seg.s && (seg.s.ok=!seg.s.ok)" x-text="seg.t"></span></template></div>
+        <div class="bg-white border rounded p-4 text-sm anon-text"><div class="text-xs font-semibold text-slate-500 mb-2">WYNIK</div><span x-text="sa.result||'— zatwierdź, aby zobaczyć wynik —'"></span>
+          <div x-show="sa.result" class="mt-3"><button class="bg-slate-800 text-white px-3 py-1 rounded text-xs" @click="downloadAnonDocx()">Pobierz DOCX</button></div></div>
+      </div>
+    </div>
+  </template>
+</section>
+
+<!-- ================= PANEL WNIOSKU ================= -->
+<div x-show="cur" x-cloak class="fixed inset-0 bg-black/30 z-40" @click.self="cur=null">
+  <div class="absolute right-0 top-0 h-full w-full max-w-[1100px] bg-slate-50 shadow-2xl overflow-y-auto" x-show="cur" style="padding-bottom:env(safe-area-inset-bottom)">
+  <template x-if="cur">
+    <div>
+      <div class="sticky top-0 z-10 bg-white border-b px-4 md:px-5 py-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <i class="w-3 h-3 rounded-full inline-block" :class="'dot-'+cur.urgency"></i>
+        <div class="min-w-0 flex-1"><div class="font-bold leading-snug" x-text="cur.subject"></div><div class="text-xs text-slate-500"><span x-text="cur.number"></span> · termin <b x-text="fmt(cur.deadline)"></b>
+          (<span x-text="cur.status==='wyslana'?'wysłano':(cur.days_left<0?'PO TERMINIE '+(-cur.days_left)+' dni':cur.days_left+' dni')"></span>) · projekt z wydziału do <b x-text="fmt(cur.dept_deadline)"></b></div></div>
+        <div class="md:ml-auto flex gap-1 text-xs order-3 md:order-none w-full md:w-auto">
+          <template x-for="(lbl,key) in cfg.statuses"><button @click="setStatus(key)" class="px-2 py-1 rounded border"
+            :class="cur.status===key?'bg-[#00305f] text-white border-[#00305f]':'bg-white'" x-text="lbl.split(') ')[0]+')'" :title="lbl"></button></template>
+          <button class="ml-auto md:ml-3 text-2xl leading-none px-2" @click="cur=null">×</button>
+        </div>
+      </div>
+
+      <div class="px-3 md:px-5 pt-3 md:pt-4">
+        <div class="bg-white border rounded-[14px] px-4 md:px-5 py-3 flex items-center gap-2 overflow-x-auto" style="border-color:#e6e9ef">
+          <template x-for="(st,i) in steps"><div class="contents">
+            <div class="step" :class="stepState(i)"><span class="num" x-text="stepState(i)==='done'?'✓':(i+1)"></span><span x-text="st"></span></div>
+            <div x-show="i<steps.length-1" class="step-line" :class="stepState(i)==='done'&&'done'"></div></div></template>
+        </div>
+      </div>
+      <div class="p-3 md:p-5 grid md:grid-cols-5 gap-4 md:gap-5">
+        <!-- lewa kolumna -->
+        <div class="md:col-span-2 space-y-4">
+          <div x-show="cur.recognition" class="bg-white border rounded p-4 panel-card">
+            <div class="flex items-center gap-2 mb-2"><h3 class="font-semibold">Rozpoznanie pisma</h3>
+              <span class="ml-auto pill bg-emerald-100 text-emerald-800" x-show="cur.recognition&&cur.recognition.seconds" x-text="'⏱ '+(cur.recognition&&cur.recognition.seconds)+' s'"></span></div>
+            <div class="flex gap-3">
+              <a x-show="cur.doc_id" :href="'/api/documents/'+cur.doc_id+'/page/1'" target="_blank" class="shrink-0"><img :src="cur.doc_id?('/api/documents/'+cur.doc_id+'/page/1'):''" class="w-24 h-32 object-cover rounded border" onerror="this.parentElement.style.display='none'"></a>
+              <div class="text-xs space-y-1.5 min-w-0">
+                <div class="flex flex-wrap gap-1"><template x-for="m in ((cur.recognition||{}).methods||[])"><span class="px-1.5 rounded" :class="methCls(m)" x-text="m"></span></template>
+                  <span x-show="(cur.recognition||{}).handwritten" class="px-1.5 rounded bg-amber-100 text-amber-800">✍ pismo odręczne</span></div>
+                <div x-show="(cur.recognition||{}).stamp_date" class="text-slate-700">📮 Pieczęć wpływu: <b x-text="fmt((cur.recognition||{}).stamp_date)"></b><span x-show="(cur.recognition||{}).entry_number" x-text="' · nr '+(cur.recognition||{}).entry_number"></span></div>
+                <div class="text-slate-500">Data wpływu przyjęta z: <b x-text="(cur.recognition||{}).received_source"></b> → termin <b x-text="fmt(cur.deadline)"></b></div>
+                <template x-if="((cur.recognition||{}).stamps||[]).length"><details><summary class="cursor-pointer text-blue-700">pieczątki i adnotacje (<span x-text="cur.recognition.stamps.length"></span>)</summary>
+                  <ul class="list-disc ml-4 mt-1"><template x-for="st in cur.recognition.stamps"><li class="whitespace-pre-wrap" x-text="st.kind+': '+st.text"></li></template></ul></details></template>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white border rounded p-4 panel-card">
+            <h3 class="font-semibold mb-2">1. Dane wniosku <span class="text-xs font-normal text-slate-400">– sprawdź i zatwierdź</span></h3>
+            <div class="grid grid-cols-2 gap-2 text-sm">
+              <label class="text-xs">Lp.<input x-model="edit.lp" class="border rounded px-2 py-1 w-full"></label>
+              <label class="text-xs">Nr wniosku<input x-model="edit.number" class="border rounded px-2 py-1 w-full font-mono text-xs"></label>
+              <label class="text-xs">Data wpływu<input type="date" x-model="edit.received_date" class="border rounded px-2 py-1 w-full"></label>
+              <label class="text-xs">Inicjały<input x-model="edit.initials" maxlength="4" class="border rounded px-2 py-1 w-full"></label>
+              <label class="text-xs">Kwerenda / przedłużenie (dni)<input type="number" min="0" max="60" x-model="edit.extended_days" class="border rounded px-2 py-1 w-full"></label>
+              <label class="text-xs">Data udzielenia<input type="date" x-model="edit.answered_date" class="border rounded px-2 py-1 w-full"></label>
+              <label class="text-xs col-span-2">Wnioskodawca<input x-model="edit.requester" class="border rounded px-2 py-1 w-full"></label>
+              <label class="text-xs col-span-2">Temat<input x-model="edit.subject" class="border rounded px-2 py-1 w-full"></label>
+              <label class="text-xs col-span-2">Skrócony opis<textarea x-model="edit.summary" class="border rounded px-2 py-1 w-full h-16"></textarea></label>
+            </div>
+            <div class="text-xs text-slate-500 mt-1">Termin liczony automatycznie: 14 dni (art. 13 ust. 1 UDIP), przedłużenie maks. do 2 mies. (art. 13 ust. 2), dzień wolny → następny dzień roboczy.</div>
+            <button class="mt-2 bg-[#00305f] text-white px-3 py-1.5 rounded text-sm" @click="saveEdit()">Zatwierdź dane</button>
+            <div x-show="cur.questions && cur.questions.length" class="mt-3"><div class="text-xs font-semibold text-slate-500">PYTANIA Z WNIOSKU</div>
+              <ol class="list-decimal ml-5 text-sm"><template x-for="q in cur.questions"><li x-text="q"></li></template></ol></div>
+            <details class="mt-2"><summary class="text-xs cursor-pointer text-blue-700">Pełna treść wniosku</summary><div class="text-xs whitespace-pre-wrap mt-1 max-h-72 overflow-y-auto bg-slate-50 p-2 rounded" x-text="cur.content"></div></details>
+          </div>
+
+          <div class="bg-white border rounded p-4 panel-card">
+            <div class="flex items-center"><h3 class="font-semibold">2. Podobne sprawy z archiwum</h3>
+              <button class="ml-auto text-xs text-blue-700" @click="act('similar','Szukam podobnych spraw…')">odśwież</button></div>
+            <div class="space-y-2 mt-2">
+              <template x-for="s in (cur.similar||[])"><details class="border rounded p-2 text-sm" :class="s.last_year?'':'opacity-70'">
+                <summary class="cursor-pointer flex gap-2 items-center"><span class="text-xs font-bold px-1.5 rounded bg-emerald-100 text-emerald-800" x-text="(s.score||'')+'%'"></span>
+                  <span class="font-medium flex-1" x-text="s.subject"></span><span class="text-xs text-slate-500" x-text="fmt(s.received_date)"></span></summary>
+                <div class="text-xs text-slate-500 mt-1" x-text="'Dlaczego: '+(s.why||'')+' · '+(s.department||'')+(s.last_year?' · ostatni rok':' · starsze')"></div>
+                <div class="text-xs mt-1 whitespace-pre-wrap bg-slate-50 p-2 rounded" x-text="s.answer_text"></div></details></template>
+              <div x-show="!(cur.similar||[]).length" class="text-xs text-slate-400">Brak podobnych spraw w archiwum.</div>
+            </div>
+          </div>
+
+          <div class="bg-white border rounded p-4 panel-card">
+            <div class="flex items-center"><h3 class="font-semibold">3. Właściwe wydziały</h3>
+              <button class="ml-auto text-xs text-blue-700" @click="act('departments','Analizuję właściwość wydziałów…')">odśwież</button></div>
+            <div class="space-y-2 mt-2">
+              <template x-for="(d,i) in ((cur.departments||{}).departments||[])"><div class="border rounded p-2 text-sm">
+                <div class="flex items-center gap-2"><span class="font-bold text-[#00305f]" x-text="(i+1)+'. '+d.code"></span>
+                  <a class="text-xs underline decoration-dotted" :href="dept(d.code).url||null" target="_blank" x-text="deptName(d.code)"></a><span x-show="dept(d.code).external" class="text-[10px] bg-amber-100 text-amber-800 px-1 rounded">poza Urzędem</span><span class="ml-auto text-xs bg-blue-100 text-blue-800 px-1.5 rounded" x-text="d.confidence+'%'"></span></div>
+                <div class="text-xs text-slate-600 mt-1" x-text="d.reason"></div>
+                <div class="text-xs mt-1"><b>Co zamówić:</b> <span x-text="d.what_to_ask"></span></div>
+                <button class="text-xs text-blue-700 mt-1" @click="copyAsk(d)">📋 kopiuj treść prośby do wydziału</button>
+              </div></template>
+              <div x-show="(cur.departments||{}).processed_info_risk" class="text-xs p-2 rounded bg-amber-50 border border-amber-200">⚠ Informacja przetworzona? <span x-text="(cur.departments||{}).processed_info_note"></span></div>
+              <div x-show="(cur.departments||{}).protected_info_risk" class="text-xs p-2 rounded bg-red-50 border border-red-200">⛔ Informacja chroniona? <span x-text="(cur.departments||{}).protected_info_note"></span> <i>(§ 11 ust. 9 Zarządzenia 535/2024 – projekt decyzji odmownej)</i></div>
+              <div x-show="(cur.departments||{}).bip_hint" class="text-xs p-2 rounded bg-blue-50 border border-blue-200">🔗 BIP: <span x-text="(cur.departments||{}).bip_hint"></span> <i>(§ 8 ust. 1 – wskazać adres strony BIP)</i></div>
+            </div>
+            <div class="text-xs text-slate-500 mt-2">Termin dla wydziału: <b x-text="fmt(cur.dept_deadline)"></b> (3 dni robocze przed terminem ustawowym). Projekt odpowiedzi wydział przesyła na bip@um.bydgoszcz.pl po anonimizacji (§ 11 ust. 1 i 8 Zarządzenia 535/2024). Prośbę wysyłasz samodzielnie – asystent niczego nie wysyła.</div>
+            <button class="mt-2 border px-3 py-1 rounded text-xs" @click="setStatus('w_wydziale')">Oznacz: zapytania wysłane do wydziałów</button>
+          </div>
+        </div>
+
+        <!-- prawa kolumna -->
+        <div class="md:col-span-3 space-y-4">
+          <div class="bg-white border rounded p-4 panel-card">
+            <h3 class="font-semibold mb-2">4. Odpowiedzi z wydziałów</h3>
+            <form @submit.prevent="addResponse($event)" class="flex flex-wrap gap-2 items-end text-sm">
+              <select name="department" class="border rounded px-2 py-1.5 w-full max-w-full"><template x-for="d in depts"><option :value="d.code" x-text="d.code+' – '+d.name"></option></template></select>
+              <input type="file" name="file" class="text-xs">
+              <button class="bg-slate-800 text-white px-3 py-1 rounded">Wgraj odpowiedź</button>
+              <textarea name="text" placeholder="…lub wklej treść odpowiedzi wydziału" class="border rounded px-2 py-1 w-full h-14"></textarea>
+            </form>
+            <template x-for="(r,i) in cur.responses"><details class="border rounded p-2 mt-2 text-sm"><summary class="cursor-pointer"><b x-text="'W'+(i+1)+' · '+r.department"></b>
+              <span class="text-xs text-slate-500" x-text="' '+(r.filename||'tekst')+' · '+r.created_at"></span>
+              <button class="text-xs text-red-600 ml-2" @click.prevent="delResponse(r.id)">usuń</button></summary>
+              <div class="text-xs whitespace-pre-wrap mt-1" x-text="r.text"></div></details></template>
+          </div>
+
+          <div class="bg-white border rounded p-4 panel-card">
+            <div class="flex items-center gap-2 mb-2"><h3 class="font-semibold">5. Projekt odpowiedzi + anonimizacja</h3>
+              <button class="ml-auto bg-[#00305f] text-white px-3 py-1.5 rounded text-sm disabled:opacity-40" :disabled="!cur.responses.length"
+                @click="act('draft','Przygotowuję projekt pisma na podstawie odpowiedzi wydziałów…')">✨ Generuj projekt</button></div>
+            <div x-show="!cur.draft" class="text-sm text-slate-400">Wgraj co najmniej jedną odpowiedź wydziału i kliknij „Generuj projekt”.</div>
+            <template x-if="cur.draft">
+              <div>
+                <div class="flex gap-1 text-xs mb-2">
+                  <button class="px-2 py-1 rounded border" :class="mode==='anon'?'bg-slate-800 text-white':''" @click="toAnon()">Anonimizacja</button>
+                  <button class="px-2 py-1 rounded border" :class="mode==='edit'?'bg-slate-800 text-white':''" @click="mode='edit'">Edycja treści</button>
+                  <span class="ml-auto text-slate-500" x-text="stats(dv)"></span>
+                </div>
+                <div class="text-xs mb-2 p-2 bg-amber-50 border border-amber-200 rounded">Sprawdź merytorycznie! <span class="mark-missing px-1">[[…]]</span> = brak danych / decyzja urzędnika. [źr. W1] = źródło zdania (odpowiedź wydziału).</div>
+                <textarea x-show="mode==='edit'" x-model="dv.text" class="w-full h-[50vh] md:h-[420px] border rounded p-3 text-sm"></textarea>
+                <div x-show="mode==='anon'">
+                  <div class="flex gap-2 mb-2 text-xs">
+                    <button class="border px-2 py-1 rounded" @click="acceptAll(dv)">Akceptuj wszystkie propozycje</button>
+                    <button class="border px-2 py-1 rounded" @click="hideSelection(dv,'dvText')">Ukryj zaznaczony tekst</button>
+                    <button class="border px-2 py-1 rounded" @click="redetect()">Wykryj ponownie</button>
+                  </div>
+                  <details class="mb-2 text-xs bg-slate-50 border rounded p-2"><summary class="cursor-pointer font-semibold">Lista danych podlegających anonimizacji – UMB (28 kategorii) · wykryto: <span x-text="(dv.spans||[]).length"></span></summary>
+        <div class="grid md:grid-cols-2 gap-x-4 mt-1"><template x-for="c in cats"><div class="flex gap-1" :class="catCount(dv,c.code)?'font-semibold text-slate-900':'text-slate-500'"><span x-text="catCount(dv,c.code)?'●':'○'"></span><span x-text="c.label"></span><span x-show="catCount(dv,c.code)" x-text="'('+catCount(dv,c.code)+')'"></span></div></template></div></details>
+                  <div class="border rounded p-3 text-sm anon-text max-h-[420px] overflow-y-auto" x-ref="dvText"><template x-for="seg in segments(dv.text, dv.spans)">
+                    <span :class="seg.s ? (seg.s.ok?'pii-ok':'pii-prop') : (seg.miss?'mark-missing':'')" :title="seg.s ? (catLabel(seg.s.category)+' · źródło: '+seg.s.source+(seg.s.reason?' · '+seg.s.reason:'')) : ''"
+                          @click="seg.s && (seg.s.ok=!seg.s.ok)" x-text="seg.t"></span></template></div>
+                </div>
+                <div class="flex flex-wrap gap-2 mt-3">
+                  <button class="bg-emerald-700 text-white px-3 py-1.5 rounded text-sm" @click="applyAnon()">✔ Zatwierdź anonimizację i treść</button>
+                  <a class="border px-3 py-1.5 rounded text-sm bg-white" :href="'/api/requests/'+cur.id+'/docx?variant='+(cur.final_text?'final':'draft')">⬇ DOCX</a>
+                  <a class="border px-3 py-1.5 rounded text-sm bg-white" :href="'/api/requests/'+cur.id+'/txt'">⬇ TXT</a>
+                  <button class="ml-auto border border-emerald-700 text-emerald-800 px-3 py-1.5 rounded text-sm" @click="setStatus('wyslana')">Oznacz: odpowiedź wysłana</button>
+                </div>
+                <div x-show="cur.final_text" class="mt-3"><div class="text-xs font-semibold text-emerald-700">WERSJA ZATWIERDZONA (zanonimizowana)</div>
+                  <div class="text-sm whitespace-pre-wrap bg-emerald-50 border border-emerald-200 rounded p-3 max-h-64 overflow-y-auto" x-text="cur.final_text"></div></div>
+              </div>
+            </template>
+          </div>
+
+          <div class="bg-white border rounded p-4 panel-card">
+            <h3 class="font-semibold mb-1">Historia sprawy</h3>
+            <ul class="text-xs space-y-0.5"><template x-for="h in (cur.history||[]).slice().reverse()"><li><span class="text-slate-400" x-text="h.at"></span> · <span x-text="h.note||h.status"></span></li></template></ul>
+            <button class="text-xs text-red-600 mt-2" @click="delRequest()">usuń wniosek</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+  </div>
+</div>
+
+<div x-show="doc" x-cloak class="fixed inset-0 bg-black/40 z-40" @click.self="doc=null">
+ <div class="absolute right-0 top-0 h-full w-full max-w-[1300px] bg-slate-50 overflow-y-auto" x-show="doc" style="padding-bottom:env(safe-area-inset-bottom)"><template x-if="doc"><div>
+  <div class="sticky top-0 bg-white border-b px-5 py-3 flex items-center gap-3 z-10">
+    <span class="text-xs px-2 py-0.5 rounded" :class="typeCls(doc.doc_type)" x-text="doc.doc_type_label"></span>
+    <b class="truncate min-w-0 flex-1 text-sm md:text-base" x-text="doc.filename"></b><span x-show="doc.handwritten" class="text-xs px-1.5 rounded bg-amber-100 text-amber-800">✍ pismo odręczne</span>
+    <button class="ml-auto text-xs text-red-600" @click="delDoc()">usuń</button><button class="text-xl px-2" @click="doc=null">×</button></div>
+  <div class="p-3 md:p-5 grid md:grid-cols-2 gap-4 md:gap-5">
+    <div class="space-y-3">
+      <template x-for="n in (doc.previews||[])"><div class="bg-white border rounded p-1"><div class="text-[10px] text-slate-400 px-1" x-text="'strona '+n"></div>
+        <img :src="'/api/documents/'+doc.id+'/page/'+n+'?v='+doc.id" class="w-full"></div></template>
+      <div x-show="!(doc.previews||[]).length" class="text-sm text-slate-400 bg-white border rounded p-4">Brak podglądu (dokument Word / tekst).</div>
+    </div>
+    <div class="space-y-3">
+      <div class="bg-white border rounded p-4 text-sm panel-card">
+        <h3 class="font-semibold mb-2">Metadane pisma <span class="text-xs font-normal text-slate-400">– sprawdź i popraw</span></h3>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="text-xs">Typ pisma<select x-model="doc.doc_type" class="border rounded px-2 py-1 w-full"><option value="wniosek">Wniosek</option><option value="odpowiedz">Odpowiedź</option>
+            <option value="kwerenda">Kwerenda / przedłużenie</option><option value="doprecyzowanie">Wezwanie do doprecyzowania</option><option value="decyzja">Decyzja</option><option value="inne">Inne</option></select></label>
+          <label class="text-xs">Sygnatura<input x-model="doc.signature" class="border rounded px-2 py-1 w-full font-mono text-xs"></label>
+          <label class="text-xs">Data wpływu<input type="date" x-model="doc.received_date" class="border rounded px-2 py-1 w-full"></label>
+          <label class="text-xs">Nr wpływu (kancelaria)<input x-model="doc.entry_number" class="border rounded px-2 py-1 w-full"></label>
+        </div>
+        <button class="mt-2 border px-3 py-1 rounded text-xs" @click="saveDoc()">Zapisz metadane i tekst</button>
+      </div>
+      <div class="bg-white border rounded p-4 text-xs space-y-2 panel-card">
+        <h3 class="font-semibold text-sm">Jak rozpoznano</h3>
+        <template x-for="p in doc.pages"><div class="border rounded p-2">
+          <div class="flex gap-2 items-center"><b x-text="'Strona '+p.n"></b><span class="px-1.5 rounded" :class="methCls(p.method)" x-text="p.method"></span>
+            <span x-text="'pewność '+(p.conf!=null?Math.round(p.conf)+'%':'—')"></span>
+            <span x-show="p.ocr_conf_before!=null" class="text-slate-500" x-text="'(Tesseract: '+p.ocr_conf_before+'%)'"></span></div>
+          <div x-show="p.escalation" class="text-purple-700" x-text="'Eskalacja do AI-vision: '+p.escalation"></div>
+          <div x-show="p.notes" class="text-slate-500" x-text="p.notes"></div>
+          <template x-if="(p.stamps||[]).length"><div class="mt-1"><b>Pieczątki / adnotacje:</b><ul class="list-disc ml-4"><template x-for="st in p.stamps"><li x-text="st.kind+': '+st.text"></li></template></ul></div></template>
+          <details x-show="p.ocr_text" class="mt-1"><summary class="cursor-pointer text-slate-500">porównaj z wynikiem samego Tesseract OCR</summary><pre class="whitespace-pre-wrap bg-slate-50 p-2 mt-1" x-text="p.ocr_text"></pre></details>
+        </div></template>
+      </div>
+      <div class="bg-white border rounded p-4 panel-card">
+        <h3 class="font-semibold text-sm mb-1">Rozpoznany tekst</h3>
+        <textarea x-model="doc.text" class="w-full h-72 border rounded p-2 text-sm"></textarea>
+      </div>
+      <div class="bg-white border rounded p-4 text-sm space-y-2 panel-card">
+        <h3 class="font-semibold">Co zrobić z pismem?</h3>
+        <div x-show="doc.matched_request" class="text-xs text-emerald-700">✓ Sprawa o tej sygnaturze jest w kalendarzu: <b x-text="doc.matched_request&&doc.matched_request.subject"></b></div>
+        <div x-show="!doc.matched_request && doc.doc_type!=='wniosek'" class="text-xs">Sprawa: <select x-model="selReq" class="border rounded px-2 py-1 text-xs max-w-full"><option value="">— wybierz wniosek z kalendarza —</option>
+          <template x-for="r in allReqs"><option :value="r.id" x-text="r.number+' · '+r.subject"></option></template></select></div>
+        <div class="flex flex-wrap gap-2">
+          <button x-show="doc.doc_type==='wniosek'" class="bg-[#00305f] text-white px-3 py-1.5 rounded text-xs" @click="docAction('create_request')">＋ Utwórz wniosek w kalendarzu</button>
+          <button x-show="doc.doc_type==='odpowiedz'" class="bg-emerald-700 text-white px-3 py-1.5 rounded text-xs" @click="docAction('mark_final')">Zarejestruj jako odpowiedź udzieloną</button>
+          <button x-show="doc.doc_type!=='wniosek'" class="border px-3 py-1.5 rounded text-xs" @click="docAction('add_response')">Dołącz do sprawy jako materiał</button>
+          <span x-show="doc.doc_type==='kwerenda'" class="flex items-center gap-1 text-xs"><input type="number" x-model="kwDays" class="border rounded w-16 px-1 py-1"> dni
+            <button class="bg-purple-700 text-white px-3 py-1.5 rounded text-xs" @click="docAction('apply_kwerenda')">Zastosuj przedłużenie terminu</button></span>
+          <button x-show="doc.doc_type==='doprecyzowanie'" class="bg-amber-600 text-white px-3 py-1.5 rounded text-xs" @click="docAction('doprecyzowanie')">Odnotuj wezwanie w sprawie</button>
+          <button class="border px-3 py-1.5 rounded text-xs" @click="anonFromDoc()">Anonimizuj ten tekst →</button>
+        </div>
+      </div>
+    </div>
+  </div></div></template></div></div>
+<div x-show="kView" x-cloak class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center" @click.self="kView=null"><div class="bg-white rounded-lg max-w-3xl w-full max-h-[85vh] overflow-y-auto p-5" x-show="kView">
+  <div class="flex items-center mb-2"><h3 class="font-semibold" x-text="kView&&kView.title"></h3><button class="ml-auto text-xl" @click="kView=null">×</button></div>
+  <pre class="text-xs whitespace-pre-wrap font-sans" x-text="kView&&kView.text"></pre></div></div>
+<div x-show="busy && tab!=='cal' || busy && (cur||doc)" x-cloak class="fixed top-16 left-1/2 -translate-x-1/2 bg-blue-700 text-white px-4 py-2 rounded shadow-lg text-sm z-[60] flex items-center gap-2"><svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity=".25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="4" fill="none"/></svg><span x-text="busy"></span></div>
+<div x-show="toast" x-cloak x-transition class="fixed bottom-20 lg:bottom-5 left-1/2 -translate-x-1/2 max-w-[92vw] text-center bg-slate-900 text-white px-4 py-2 rounded shadow-lg text-sm z-50" x-text="toast"></div>
+</main>
+
+<script>
+function app(){return{
+  tabs:[{id:'cal',label:'Kalendarz wniosków'},{id:'arch',label:'Archiwum i baza wiedzy'},{id:'rec',label:'Rozpoznawanie dokumentów'},{id:'anon',label:'Anonimizacja dokumentu'}],
+  tab:'cal', view:'table', cfg:{statuses:{}}, items:[], years:[], year:'', hideDone:false, depts:[], busy:'', toast:'', dragOver:false,
+  cur:null, edit:{}, mode:'anon', dv:{text:'',spans:[]}, month:new Date(), archive:[], knowledge:[], archQ:'', cats:[], kView:null, docs:[], doc:null, forceVision:false, allReqs:[], selReq:'', kwDays:30, sa:{text:'',spans:null,result:''},
+  async init(){ this.cfg=await (await fetch('/api/config')).json(); this.depts=await (await fetch('/api/departments')).json(); this.cats=await (await fetch('/api/anonymization-categories')).json();
+    this.year=String(new Date().getFullYear()); await this.load(); if(!this.years.map(String).includes(this.year)) {this.year=''; await this.load();} this.loadArchive(); },
+  async api(url,opt={}){ const r=await fetch(url,opt); if(!r.ok){let m=r.statusText; try{m=(await r.json()).detail}catch(e){} throw new Error(m)} return r.json() },
+  say(m){this.toast=m; setTimeout(()=>this.toast='',3500)},
+  async load(){ const d=await this.api('/api/requests'+(this.year?'?year='+this.year:'')); this.items=d.items; this.years=d.years; },
+  get filtered(){ return this.items.filter(r=>!(this.hideDone&&r.status==='wyslana')) },
+  get kpi(){ const a=this.items.filter(r=>r.status!=='wyslana'); return {active:a.length, urgent:a.filter(r=>r.days_left<=0).length,
+    tomorrow:a.filter(r=>r.urgency==='tomorrow').length, kw:a.filter(r=>r.status==='kwerenda').length, done:this.items.length-a.length} },
+  steps:['Wniosek zarejestrowany','Zapytania do wydziałów','Odpowiedzi wydziałów','Projekt i anonimizacja','Odpowiedź wysłana'],
+  stepState(i){ const c=this.cur; if(!c) return ''; const lvl={nowy:0,w_wydziale:1,kwerenda:1,przygotowana:3,wyslana:5}[c.status]??0;
+    let cur=lvl; if(lvl===1 && (c.responses||[]).length) cur=2; if(c.draft && cur<3) cur=3; if(lvl===5) return 'done';
+    return i<cur?'done':(i===cur?'now':'') },
+  statusShort(s){ return {nowy:'Brak działań',w_wydziale:'W wydziałach',kwerenda:'Kwerenda',przygotowana:'Przygotowana',wyslana:'Wysłana'}[s]||s },
+  greeting(){ const h=new Date().getHours(); const d=new Date().toLocaleDateString('pl-PL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    return (h<12?'Dzień dobry':(h<18?'Dzień dobry':'Dobry wieczór'))+' · '+d },
+  get attention(){ return this.items.filter(r=>r.status!=='wyslana' && ['overdue','today','tomorrow','soon'].includes(r.urgency)).sort((a,b)=>a.days_left-b.days_left).slice(0,4) },
+  fmt(d){ if(!d) return ''; const [y,m,dd]=d.slice(0,10).split('-'); return dd+'.'+m+'.'+y },
+  catLabel(c){ return (this.cats.find(x=>x.code===c)||{}).label||c },
+  catCount(o,c){ return (o.spans||[]).filter(s=>s.category===c).length },
+  dept(c){ return this.depts.find(d=>d.code===c)||{} },
+  deptName(c){ return (this.depts.find(d=>d.code===c)||{}).name||'' },
+  async uploadRequest(f){ if(!f) return; const t0=Date.now();
+    const steps=['📷 Odczytuję pismo (OCR / AI-vision, pismo odręczne, pieczątki)…','🧠 Wyciągam dane: wnioskodawca, temat, pytania…','🏛️ Dobieram właściwe wydziały i szukam podobnych spraw…','📅 Liczę termin ustawowy (art. 13 UDIP)…'];
+    let i=0; this.busy=steps[0]; const tm=setInterval(()=>{ i=Math.min(i+1,steps.length-1); this.busy=steps[i]+'  '+Math.round((Date.now()-t0)/1000)+' s' },5000);
+    try{ const fd=new FormData(); fd.append('file',f, f.name||'zdjecie.jpg'); const r=await this.api('/api/requests/upload',{method:'POST',body:fd});
+      await this.load(); this.setCur(r); this.say('✅ Wniosek w kalendarzu po '+Math.round((Date.now()-t0)/1000)+' s · termin '+this.fmt(r.deadline)); }catch(e){ this.say('Błąd: '+e.message) }
+    clearInterval(tm); this.busy='' },
+  async open(id){ const r=await this.api('/api/requests/'+id); this.setCur(r); if(!(r.similar||[]).length){ const r2=await this.api('/api/requests/'+id+'/similar',{method:'POST'}); if(this.cur&&this.cur.id===id){ const k=this.dv; this.setCur(r2); this.dv=k } } },
+  setCur(r){ this.cur=r; this.edit={lp:r.lp,number:r.number,received_date:r.received_date,initials:r.initials,extended_days:r.extended_days||0,
+      answered_date:r.answered_date,requester:r.requester,subject:r.subject,summary:r.summary};
+    this.dv={text:r.draft||'', spans:(r.anon_spans||[]).map(s=>({...s,ok:s.ok||false}))}; this.mode='anon' },
+  async patch(body){ const r=await this.api('/api/requests/'+this.cur.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const keepDv=this.dv; this.setCur(r); if(body.draft===undefined) this.dv=keepDv; await this.load(); return r },
+  async saveEdit(){ const b={...this.edit}; b.extended_days=parseInt(b.extended_days||0); if(!b.answered_date) delete b.answered_date; await this.patch(b); this.say('Dane zatwierdzone') },
+  async setStatus(s){ await this.patch({status:s}); this.say('Status: '+this.cfg.statuses[s]) },
+  async act(kind,msg){ this.busy=msg; try{ const r=await this.api('/api/requests/'+this.cur.id+'/'+kind,{method:'POST'}); this.setCur(r); await this.load() }catch(e){this.say('Błąd: '+e.message)} this.busy='' },
+  async addResponse(ev){ const fd=new FormData(ev.target); if(!fd.get('text')&&!(fd.get('file')&&fd.get('file').name)) return this.say('Dodaj plik lub treść');
+    this.busy='Odczytuję odpowiedź wydziału…'; try{ const r=await this.api('/api/requests/'+this.cur.id+'/responses',{method:'POST',body:fd}); const keep=this.dv; this.setCur(r); this.dv=keep; ev.target.reset(); await this.load() }catch(e){this.say('Błąd: '+e.message)} this.busy='' },
+  async delResponse(id){ await this.api('/api/responses/'+id,{method:'DELETE'}); this.open(this.cur.id) },
+  async delRequest(){ if(!confirm('Usunąć wniosek?')) return; await this.api('/api/requests/'+this.cur.id,{method:'DELETE'}); this.cur=null; this.load() },
+  copyAsk(d){ const c=this.cur; const t=`Do: ${d.code} – ${this.deptName(d.code)}\n\nDotyczy: wniosku o udostępnienie informacji publicznej nr ${c.number} z dnia ${this.fmt(c.received_date)}\n\nUprzejmie proszę, zgodnie z § 10 i § 11 Zarządzenia nr 535/2024 Prezydenta Miasta Bydgoszczy, o przygotowanie projektu odpowiedzi w zakresie właściwym dla Wydziału:\n${d.what_to_ask}\n\nProjekt odpowiedzi – po dokonaniu koniecznej anonimizacji (§ 11 ust. 8) – proszę przesłać na adres bip@um.bydgoszcz.pl w terminie do ${this.fmt(c.dept_deadline)}.\nTermin udzielenia odpowiedzi wnioskodawcy: ${this.fmt(c.deadline)}.\n\nW przypadku gdy:\n– Wydział nie posiada informacji – proszę o niezwłoczną informację i wskazanie jednostki właściwej (§ 11 ust. 3),\n– informacja ma charakter przetworzony – proszę o uzasadnienie (§ 11 ust. 7),\n– informacja jest chroniona prawem – proszę o projekt decyzji odmownej (§ 11 ust. 9),\n– termin nie może być dotrzymany – proszę o pisemne powiadomienie z podaniem przyczyn (§ 11 ust. 5).`;
+    navigator.clipboard.writeText(t); this.say('Skopiowano treść prośby do schowka') },
+  // ---- anonimizacja ----
+  segments(text,spans){ const out=[]; let p=0; const ss=(spans||[]).filter(s=>s.end>s.start).sort((a,b)=>a.start-b.start);
+    const push=(t)=>{ if(!t) return; t.split(/(\[\[.*?\]\])/).forEach(x=>{ if(x) out.push({t:x,miss:x.startsWith('[[')}) }) };
+    for(const s of ss){ if(s.start<p) continue; push(text.slice(p,s.start)); out.push({t:text.slice(s.start,s.end),s}); p=s.end } push(text.slice(p)); return out },
+  stats(o){ const s=(o.spans||[]); return s.length? `${s.filter(x=>x.ok).length} / ${s.length} fragmentów zaakceptowanych do ukrycia`:'' },
+  acceptAll(o){ (o.spans||[]).forEach(s=>s.ok=true) },
+  hideSelection(o,ref){ const el=this.$refs[ref]; const sel=window.getSelection(); if(!sel.rangeCount||sel.isCollapsed) return this.say('Najpierw zaznacz tekst myszą');
+    const rg=sel.getRangeAt(0); if(!el.contains(rg.commonAncestorContainer)) return this.say('Zaznacz tekst w podglądzie');
+    const pre=rg.cloneRange(); pre.selectNodeContents(el); pre.setEnd(rg.startContainer,rg.startOffset); const start=pre.toString().length; const end=start+rg.toString().length;
+    o.spans=(o.spans||[]).filter(s=>s.end<=start||s.start>=end); o.spans.push({start,end,text:o.text.slice(start,end),category:'INNE',source:'urzędnik',reason:'zaznaczone ręcznie',ok:true});
+    o.spans.sort((a,b)=>a.start-b.start); sel.removeAllRanges() },
+  async toAnon(){ if(this.mode==='anon') return; this.busy='Analizuję dane osobowe w treści…';
+    try{ const r=await this.api('/api/requests/'+this.cur.id+'/anonymize/detect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:this.dv.text})});
+      this.cur=r; this.dv={text:r.draft, spans:(r.anon_spans||[]).map(s=>({...s,ok:false}))}; this.mode='anon' }catch(e){this.say('Błąd: '+e.message)} this.busy='' },
+  async redetect(){ this.mode='edit'; await this.toAnon() },
+  async applyAnon(){ const spans=this.dv.spans.filter(s=>s.ok); this.busy='Zatwierdzam…';
+    try{ const r=await this.api('/api/requests/'+this.cur.id+'/anonymize/apply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:this.dv.text,spans})});
+      const keep=this.dv; this.setCur(r); this.dv=keep; await this.load(); this.say('Zatwierdzono – '+spans.length+' fragmentów zanonimizowanych') }catch(e){this.say('Błąd: '+e.message)} this.busy='' },
+  async anonUpload(f){ if(!f) return; this.busy='Analizuję dokument…'; try{ const fd=new FormData(); fd.append('file',f); const r=await this.api('/api/anonymize',{method:'POST',body:fd});
+      this.sa={text:r.text,spans:r.spans.map(s=>({...s,ok:false})),result:''} }catch(e){this.say('Błąd: '+e.message)} this.busy='' },
+  async anonPaste(){ if(!this.sa.text) return this.say('Wklej tekst'); this.busy='Analizuję tekst…'; const fd=new FormData(); fd.append('text',this.sa.text);
+    try{ const r=await this.api('/api/anonymize',{method:'POST',body:fd}); this.sa={text:r.text,spans:r.spans.map(s=>({...s,ok:false})),result:''} }catch(e){this.say('Błąd: '+e.message)} this.busy='' },
+  async anonApplyStandalone(){ const r=await this.api('/api/anonymize/apply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:this.sa.text,spans:this.sa.spans.filter(s=>s.ok)})}); this.sa.result=r.text },
+  async downloadAnonDocx(){ const r=await fetch('/api/anonymize/docx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:this.sa.result})});
+    const b=await r.blob(); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='zanonimizowany.docx'; a.click() },
+  anonToolbar(){ return '' },
+
+  // ---- rozpoznawanie ----
+  typeCls(t){ return {wniosek:'bg-blue-100 text-blue-800',odpowiedz:'bg-emerald-100 text-emerald-800',kwerenda:'bg-purple-100 text-purple-800',doprecyzowanie:'bg-amber-100 text-amber-800',decyzja:'bg-red-100 text-red-800'}[t]||'bg-slate-100' },
+  methCls(m){ return m==='ai-vision'?'bg-purple-100 text-purple-800':(m==='ocr'?'bg-blue-100 text-blue-800':'bg-slate-200 text-slate-700') },
+  async loadDocs(){ this.docs=await this.api('/api/documents') },
+  async recognizeFiles(fl){ if(!fl||!fl.length) return; const files=[...fl]; let i=0;
+    for(const f of files){ i++; this.busy=`Rozpoznaję ${i}/${files.length}: ${f.name}…`; const fd=new FormData(); fd.append('files',f); fd.append('force_vision',this.forceVision?'true':'false');
+      try{ await this.api('/api/recognize',{method:'POST',body:fd}); await this.loadDocs() }catch(e){ this.say('Błąd ('+f.name+'): '+e.message) } }
+    this.busy=''; this.say('Rozpoznano '+files.length+' plik(ów)') },
+  async openDoc(id){ this.doc=await this.api('/api/documents/'+id); this.selReq=''; this.allReqs=(await this.api('/api/requests')).items },
+  async saveDoc(){ const d=this.doc; this.doc=await this.api('/api/documents/'+d.id,{method:'PATCH',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({doc_type:d.doc_type,signature:d.signature,received_date:d.received_date,entry_number:d.entry_number,text:d.text})}); this.loadDocs(); this.say('Zapisano') },
+  async delDoc(){ if(!confirm('Usunąć dokument?')) return; await this.api('/api/documents/'+this.doc.id,{method:'DELETE'}); this.doc=null; this.loadDocs() },
+  async docAction(a){ await this.saveDoc(); this.busy='Wykonuję…';
+    try{ const r=await this.api('/api/documents/'+this.doc.id+'/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:a,request_id:this.selReq||null,days:this.kwDays})});
+      this.say(r.message); await this.load(); await this.loadDocs(); this.doc=await this.api('/api/documents/'+this.doc.id) }catch(e){ this.say('Błąd: '+e.message) } this.busy='' },
+  async importArchive(){ this.busy='Paruję wnioski z odpowiedziami i zapisuję do archiwum…';
+    try{ const r=await this.api('/api/documents/import-archive',{method:'POST'}); this.say(`Dodano do archiwum: ${r.added.length} spraw${r.skipped.length?(' · pominięto: '+r.skipped.length):''}`); this.loadArchive() }catch(e){ this.say('Błąd: '+e.message) } this.busy='' },
+  anonFromDoc(){ this.sa={text:this.doc.text,spans:null,result:''}; this.doc=null; this.tab='anon'; this.$nextTick(()=>this.anonPaste()) },
+  // ---- archiwum ----
+  async loadArchive(){ const d=await this.api('/api/archive?q='+encodeURIComponent(this.archQ)); this.archive=d.items; this.knowledge=d.knowledge },
+  async addArchive(ev){ this.busy='Dodaję do archiwum…'; try{ await this.api('/api/archive',{method:'POST',body:new FormData(ev.target)}); ev.target.reset(); this.loadArchive(); this.say('Dodano do archiwum') }catch(e){this.say('Błąd: '+e.message)} this.busy='' },
+  async showK(id){ this.kView=await this.api('/api/knowledge/'+id) },
+  async delK(id){ if(!confirm('Usunąć dokument z bazy wiedzy?')) return; await this.api('/api/knowledge/'+id,{method:'DELETE'}); this.loadArchive() },
+  async delArchive(id){ await this.api('/api/archive/'+id,{method:'DELETE'}); this.loadArchive() },
+  async addKnowledge(ev){ this.busy='Wgrywam dokument…'; try{ const r=await this.api('/api/knowledge',{method:'POST',body:new FormData(ev.target)}); ev.target.reset(); this.loadArchive(); this.say('Wgrano ('+r.chars+' znaków)') }catch(e){this.say('Błąd: '+e.message)} this.busy='' },
+  // ---- miesiąc ----
+  shiftMonth(n){ const d=new Date(this.month); d.setMonth(d.getMonth()+n); this.month=d },
+  monthLabel(){ return this.month.toLocaleDateString('pl-PL',{month:'long',year:'numeric'}) },
+  monthCells(){ const y=this.month.getFullYear(), m=this.month.getMonth(); const first=new Date(y,m,1); const off=(first.getDay()+6)%7; const cells=[];
+    const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); const today=iso(new Date());
+    for(let i=0;i<42;i++){ const d=new Date(y,m,1-off+i); const k=iso(d); cells.push({day:d.getDate(),other:d.getMonth()!==m,today:k===today,items:this.filtered.filter(r=>r.deadline===k)}) } return cells },
+}}
+</script>
+</body>
+</html>
