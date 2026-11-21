@@ -7,7 +7,7 @@ from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import ai, anonymize, db, seed
+from . import ai, admin, anonymize, db, seed, settings
 from .verify import verify as verify_draft
 from .deadlines import compute_deadline, is_working_day
 from datetime import timedelta
@@ -29,6 +29,8 @@ STATUSES = {"nowy": "a) Brak działań", "w_wydziale": "b) Zapytania wysłane do
             "przygotowana": "d) Odpowiedź przygotowana", "wyslana": "e) Odpowiedź wysłana"}
 
 app = FastAPI(title="Asystent UDIP – UM Bydgoszcz")
+app.include_router(admin.router)
+app.middleware("http")(admin.audit_middleware)
 PREV_DIR = os.path.join(os.path.dirname(os.path.abspath(db.DB_PATH)), "previews")
 
 
@@ -37,6 +39,15 @@ def startup():
     db.init()
     if os.getenv("SEED_DEMO", "1") == "1":
         seed.run()
+    try:  # automatyczna kopia zapasowa raz dziennie przy starcie + rotacja (30 ostatnich)
+        today = date.today().strftime("%Y%m%d")
+        if not any(b["name"].startswith(f"udip_{today}") and "auto" in b["name"] for b in admin._list_backups()):
+            admin.make_backup("auto")
+        bd = admin._backup_dir()
+        for f in sorted(os.listdir(bd))[:-30]:
+            os.remove(os.path.join(bd, f))
+    except Exception:
+        pass
 
 
 # ---------------- pomocnicze ----------------
@@ -158,13 +169,15 @@ def decorate(r: dict) -> dict:
             r["urgency"] = "soon"
         else:
             r["urgency"] = "ok"
-        r["dept_deadline"] = _minus_working_days(dl, int(os.getenv("DEPT_LEAD_DAYS", "3"))).isoformat()
+        r["dept_deadline"] = _minus_working_days(dl, settings.get_int("dept_lead_days", 3)).isoformat()
         r["days_since"] = (today - date.fromisoformat(r["received_date"])).days if r.get("received_date") else None
     r["status_label"] = STATUSES.get(r.get("status"), r.get("status"))
     return r
 
 
 def update_req(rid: int, fields: dict, note: str = None):
+    if note:
+        admin.add_detail(note)
     if not fields and not note:
         return
     with db.conn() as c:
@@ -182,7 +195,8 @@ def update_req(rid: int, fields: dict, note: str = None):
 @app.get("/api/config")
 def config():
     return {"ai": ai.enabled(), "model": ai.model() if ai.enabled() else None,
-            "provider": "lokalny (Ollama/vLLM)" if os.getenv("OPENAI_BASE_URL") else ("OpenAI API" if ai.enabled() else "brak – tryb bez AI"),
+            "provider": ai.provider_label(), "admin_enabled": bool(os.getenv("ADMIN_PASSWORD")),
+            "dept_lead_days": settings.get_int("dept_lead_days", 3),
             "statuses": STATUSES, "today": date.today().isoformat()}
 
 
@@ -272,7 +286,7 @@ async def upload_request(file: UploadFile = File(...)):
                          db.dumps(r["methods"]), db.dumps(r["pages"]), text, len(r["pages"]), "wniosek utworzony"))
         doc_id = cur.lastrowid
         lp = (c.execute("SELECT COALESCE(MAX(lp),0) FROM requests WHERE year=?", (rdd.year,)).fetchone()[0] or 0) + 1
-        number = r.get("signature") or fields.get("number") or f"BKS.IV.1431.{lp}.{rdd.year}"
+        number = r.get("signature") or fields.get("number") or f"{settings.get('case_prefix')}{lp}.{rdd.year}"
         note = f"wpłynął plik {fname}" + (f" · rozpoznano pismo odręczne (AI-vision)" if r["handwritten"] else "") + \
                (f" · pieczęć wpływu {rdd.strftime('%d.%m.%Y')}" + (f", nr {r.get('entry_number')}" if r.get("entry_number") else "") if rd_source == "pieczęć wpływu" else "")
         cur = c.execute("""INSERT INTO requests(year,lp,number,received_date,deadline,status,requester,requester_type,delivery,subject,summary,
@@ -284,6 +298,7 @@ async def upload_request(file: UploadFile = File(...)):
                          db.dumps([{"at": datetime.now().isoformat(timespec="minutes"), "status": "nowy", "note": note}]), db.dumps(recog), doc_id))
         rid = cur.lastrowid
         c.execute("UPDATE documents SET request_id=? WHERE id=?", (rid, doc_id))
+    admin.add_detail(f"{number} · {fields.get('subject') or fname} · {', '.join(r['methods'])}{' · pismo odręczne' if r['handwritten'] else ''} · {total} s")
     for i, im in enumerate(imgs[:10]):
         try:
             im2 = im.convert("RGB"); im2.thumbnail((1100, 1500)); im2.save(os.path.join(PREV_DIR, f"{doc_id}-{i+1}.jpg"), quality=80)
@@ -316,6 +331,10 @@ def patch_request(rid: int, body: dict = Body(...)):
 
 @app.delete("/api/requests/{rid}")
 def delete_request(rid: int):
+    try:
+        r0 = get_req(rid); admin.add_detail(f"{r0.get('number')} · {r0.get('subject')}")
+    except HTTPException:
+        pass
     with db.conn() as c:
         c.execute("DELETE FROM responses WHERE request_id=?", (rid,))
         c.execute("DELETE FROM requests WHERE id=?", (rid,))
@@ -644,7 +663,7 @@ def _create_request_from_text(text: str, filename: str, number: str = None, rece
         lp = (c.execute("SELECT COALESCE(MAX(lp),0) FROM requests WHERE year=?", (rdd.year,)).fetchone()[0] or 0) + 1
         cur = c.execute("""INSERT INTO requests(year,lp,number,received_date,deadline,status,requester,requester_type,delivery,subject,summary,
                            questions,content,filename,departments,similar,history) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                        (rdd.year, lp, number or fields.get("number") or f"BKS.IV.1431.{lp}.{rdd.year}", rdd.isoformat(),
+                        (rdd.year, lp, number or fields.get("number") or f"{settings.get('case_prefix')}{lp}.{rdd.year}", rdd.isoformat(),
                          compute_deadline(rdd).isoformat(), "nowy", fields.get("requester"), fields.get("requester_type"), fields.get("delivery"),
                          fields.get("subject") or filename, fields.get("summary"), db.dumps(fields.get("questions") or []), text, filename,
                          db.dumps(dep), db.dumps(similar),

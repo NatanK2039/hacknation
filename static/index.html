@@ -93,8 +93,15 @@
     <button class="nav-item" :class="tab==='arch'&&'active'" @click="tab='arch'">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v4H4zM5 8v11a1 1 0 001 1h12a1 1 0 001-1V8"/><path d="M10 12h4"/></svg>
       <span>Archiwum i baza wiedzy</span></button>
+    <div class="px-3 pt-4 pb-1 text-[10px] uppercase tracking-wider text-blue-300/80">System</div>
+    <button class="nav-item" :class="tab==='admin'&&'active'" @click="openAdmin()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>
+      <span class="flex-1">Administracja</span><svg x-show="!adminToken" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;opacity:.7"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></button>
   </nav>
   <div class="p-4 m-3 rounded-xl bg-white/10 text-xs space-y-2">
+    <label class="flex items-center gap-2 pb-2 border-b border-white/10"><span class="text-blue-200">Pracuje:</span>
+      <input x-model="me" @change="saveMe()" maxlength="20" placeholder="inicjały" title="Twoje inicjały – zapisywane w dzienniku zdarzeń"
+        class="flex-1 min-w-0 bg-white/10 rounded px-2 py-1 text-white placeholder:text-blue-300 outline-none focus:bg-white/20" style="border:0;box-shadow:none"></label>
     <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full" :class="cfg.ai?'bg-emerald-400':'bg-red-400'"></span>
       <span x-text="cfg.ai ? 'Asystent AI aktywny' : 'AI wyłączone'"></span></div>
     <div class="text-blue-200" x-show="cfg.ai" x-text="cfg.provider+' · '+cfg.model"></div>
@@ -109,6 +116,7 @@
   <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-5 h-5"><path d="M4 20V9l8-5 8 5v11"/><path d="M9 20v-6h6v6"/><path d="M2 20h20"/></svg></div>
   <div class="flex-1 min-w-0"><div class="font-semibold leading-tight text-[15px]">Asystent UDIP</div><div class="text-[11px] text-blue-200 leading-tight truncate">Urząd Miasta Bydgoszczy</div></div>
   <span class="flex items-center gap-1.5 text-[11px] bg-white/10 rounded-full px-2 py-1"><span class="w-2 h-2 rounded-full" :class="cfg.ai?'bg-emerald-400':'bg-red-400'"></span><span x-text="cfg.ai?'AI':'AI off'"></span></span>
+  <button @click="openAdmin()" aria-label="Administracja" class="w-9 h-9 rounded-lg flex items-center justify-center" :class="tab==='admin'?'bg-white text-[#0b3d91]':'bg-white/10'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-5 h-5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></button>
 </div>
 <!-- MOBILE BOTTOM NAV -->
 <nav class="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 grid grid-cols-4" style="padding-bottom:env(safe-area-inset-bottom)">
@@ -399,6 +407,167 @@
   </template>
 </section>
 
+
+<!-- ================= ADMINISTRACJA ================= -->
+<section x-show="tab==='admin'" x-cloak>
+  <div class="mb-5"><div class="text-sm text-slate-500">System</div><h1>Administracja</h1></div>
+
+  <!-- logowanie -->
+  <div x-show="!adminToken" class="max-w-md bg-white border rounded-lg p-6">
+    <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center mb-3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-6 h-6"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></div>
+    <h2 class="font-semibold text-lg text-slate-900">Panel administratora</h2>
+    <p class="text-sm text-slate-500 mb-4">Ustawienia systemu, dziennik zdarzeń, statystyki i kopie zapasowe. Wymaga osobnego hasła administratora.</p>
+    <template x-if="cfg.admin_enabled===false"><div class="text-sm p-3 rounded bg-amber-50 border border-amber-200 text-amber-800">Panel jest wyłączony. Ustaw <code>ADMIN_PASSWORD</code> w pliku <code>.env</code> na serwerze i zrestartuj aplikację.</div></template>
+    <form x-show="cfg.admin_enabled!==false" @submit.prevent="adminLogin()" class="space-y-3">
+      <input type="password" x-model="adminPw" placeholder="Hasło administratora" autocomplete="current-password" class="border rounded px-3 py-2 w-full">
+      <p x-show="adminErr" class="text-sm text-red-600" x-text="adminErr"></p>
+      <button class="bg-[#00305f] text-white px-4 py-2 rounded w-full">Zaloguj</button>
+    </form>
+  </div>
+
+  <div x-show="adminToken">
+    <div class="flex flex-wrap items-center gap-2 mb-4">
+      <template x-for="t in [['settings','Ustawienia'],['audit','Dziennik zdarzeń'],['stats','Statystyki'],['system','System i kopie']]">
+        <button class="px-3 py-1.5 rounded-full text-sm border" :class="adminTab===t[0]?'bg-[#0b3d91] text-white border-[#0b3d91]':'bg-white'" @click="adminTab=t[0]; adminLoad()" x-text="t[1]"></button></template>
+      <button class="ml-auto text-sm text-slate-500 hover:text-red-600" @click="adminLogout()">Wyloguj administratora</button>
+    </div>
+
+    <!-- USTAWIENIA -->
+    <div x-show="adminTab==='settings'" class="grid lg:grid-cols-3 gap-5">
+      <div class="lg:col-span-2 bg-white border rounded-lg p-5">
+        <h2 class="font-semibold text-slate-900 mb-3">Ustawienia systemu</h2>
+        <template x-if="adm.settings"><div class="space-y-4">
+          <template x-for="(meta,key) in adm.settings.schema" :key="key">
+            <div class="grid md:grid-cols-3 gap-2 items-start">
+              <label class="text-sm font-medium text-slate-700 pt-2" :for="'set-'+key" x-text="meta.label"></label>
+              <div class="md:col-span-2">
+                <template x-if="meta.type==='select'"><select :id="'set-'+key" x-model="adm.form[key]" class="border rounded px-3 py-2 w-full">
+                  <template x-for="o in meta.options"><option :value="o" x-text="optLabel(key,o)"></option></template></select></template>
+                <template x-if="meta.type!=='select'"><input :id="'set-'+key" :type="meta.type==='number'?'number':'text'" :min="meta.min" :max="meta.max" x-model="adm.form[key]"
+                  :disabled="key==='local_base_url' && adm.form.provider!=='local'" class="border rounded px-3 py-2 w-full disabled:bg-slate-50 disabled:text-slate-400"></template>
+                <p class="text-xs text-slate-500 mt-1" x-show="meta.help" x-text="meta.help"></p>
+                <p class="text-xs text-slate-400" x-show="adm.settings.defaults[key]!==adm.form[key]" x-text="'domyślnie: '+adm.settings.defaults[key]"></p>
+              </div>
+            </div></template>
+          <p x-show="adm.err" class="text-sm text-red-600" x-text="adm.err"></p>
+          <div class="flex gap-2 pt-2 border-t"><button class="bg-[#00305f] text-white px-4 py-2 rounded text-sm" @click="saveSettings()">Zapisz ustawienia</button>
+            <button class="border px-4 py-2 rounded text-sm bg-white" @click="adminLoad()">Cofnij zmiany</button></div>
+        </div></template>
+      </div>
+      <div class="space-y-4">
+        <div class="bg-white border rounded-lg p-5 text-sm">
+          <h3 class="font-semibold mb-2">Połączenie z AI</h3>
+          <div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 rounded-full" :class="cfg.ai?'bg-emerald-500':'bg-red-500'"></span><span x-text="cfg.provider"></span></div>
+          <div class="text-xs text-slate-500" x-show="adm.settings">Klucz OpenAI: <b x-text="adm.settings&&adm.settings.api_key_set?('ustawiony '+adm.settings.api_key_hint):'brak'"></b></div>
+          <p class="text-xs text-slate-500 mt-1">Klucz API nie jest edytowalny w przeglądarce – zmieniasz go na serwerze: <code>sudo udip key</code>.</p>
+          <button class="mt-3 border px-3 py-1.5 rounded text-sm bg-white w-full" @click="testAI()">Testuj połączenie z AI</button>
+          <div x-show="adm.test" class="mt-2 text-xs p-2 rounded" :class="adm.test&&adm.test.ok?'bg-emerald-50 text-emerald-800':'bg-red-50 text-red-800'" x-text="adm.test&&adm.test.msg"></div>
+        </div>
+        <div class="bg-white border rounded-lg p-5 text-xs text-slate-600 space-y-1">
+          <h3 class="font-semibold text-sm text-slate-900 mb-1">Jak działają ustawienia</h3>
+          <p>Zmiany obowiązują od razu, bez restartu, i są zapisywane w dzienniku zdarzeń (kto, kiedy, co zmienił).</p>
+          <p>Tryb <b>local</b> przełącza cały system na serwer AI w Urzędzie (np. Ollama z modelami Bielik i Qwen2.5-VL) – dane nie opuszczają sieci Urzędu.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- DZIENNIK -->
+    <div x-show="adminTab==='audit'" class="bg-white border rounded-lg">
+      <div class="p-4 flex flex-wrap gap-2 items-center border-b">
+        <input x-model="adm.q" @keydown.enter="loadAudit()" placeholder="Szukaj (zdarzenie, szczegóły, ID)…" class="border rounded px-3 py-1.5 text-sm flex-1 min-w-[180px]">
+        <select x-model="adm.actor" @change="loadAudit()" class="border rounded px-2 py-1.5 text-sm"><option value="">wszyscy użytkownicy</option><template x-for="a in adm.actors"><option :value="a" x-text="a"></option></template></select>
+        <select x-model="adm.otype" @change="loadAudit()" class="border rounded px-2 py-1.5 text-sm"><option value="">wszystkie obiekty</option>
+          <template x-for="o in ['wniosek','odpowiedź','dokument','archiwum','baza wiedzy','ustawienia','system','admin']"><option :value="o" x-text="o"></option></template></select>
+        <button class="border px-3 py-1.5 rounded text-sm bg-white" @click="loadAudit()">Odśwież</button>
+        <button class="bg-slate-800 text-white px-3 py-1.5 rounded text-sm" @click="adminDownload('/api/admin/audit?format=csv&limit=5000&q='+encodeURIComponent(adm.q)+'&actor='+encodeURIComponent(adm.actor)+'&object_type='+encodeURIComponent(adm.otype),'dziennik_zdarzen.csv')">⬇ CSV</button>
+      </div>
+      <div class="overflow-x-auto"><table class="w-full text-sm">
+        <thead><tr><th class="px-3 py-2.5 text-left">Czas</th><th class="px-3 py-2.5 text-left">Użytkownik</th><th class="px-3 py-2.5 text-left">Zdarzenie</th><th class="px-3 py-2.5 text-left">Obiekt</th><th class="px-3 py-2.5 text-left">Szczegóły</th></tr></thead>
+        <tbody><template x-for="r in adm.audit" :key="r.id"><tr class="border-t" :class="(r.action||'').includes('BŁĄD')||(r.action||'').includes('nieudane')?'bg-red-50':''">
+          <td class="px-3 py-2 text-xs whitespace-nowrap text-slate-500" x-text="r.at"></td>
+          <td class="px-3 py-2"><span class="pill bg-slate-100 text-slate-700" x-text="r.actor"></span></td>
+          <td class="px-3 py-2" x-text="r.action"></td>
+          <td class="px-3 py-2 text-xs whitespace-nowrap"><span x-text="r.object_type||''"></span><button x-show="r.object_type==='wniosek'&&r.object_id" class="ml-1 text-blue-700 underline" @click="open(+r.object_id)" x-text="'#'+r.object_id"></button><span x-show="r.object_type!=='wniosek'&&r.object_id" x-text="' #'+r.object_id"></span></td>
+          <td class="px-3 py-2 text-xs text-slate-600 max-w-[520px] break-words" x-text="r.details||''"></td></tr></template>
+          <tr x-show="!adm.audit.length"><td colspan="5" class="p-6 text-center text-slate-400">Brak zdarzeń</td></tr></tbody></table></div>
+    </div>
+
+    <!-- STATYSTYKI -->
+    <div x-show="adminTab==='stats'"><template x-if="adm.stats"><div class="space-y-5">
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white border rounded-lg p-4"><div class="text-xs text-slate-500" x-text="'Wnioski w '+adm.stats.year"></div><div class="text-3xl font-bold text-slate-900" x-text="adm.stats.total"></div></div>
+        <div class="bg-white border rounded-lg p-4"><div class="text-xs text-slate-500">Odpowiedzi w terminie</div><div class="text-3xl font-bold text-emerald-700" x-text="adm.stats.on_time_pct!=null?adm.stats.on_time_pct+'%':'—'"></div><div class="text-xs text-slate-400" x-text="adm.stats.on_time+' z '+adm.stats.answered+' udzielonych'"></div></div>
+        <div class="bg-white border rounded-lg p-4"><div class="text-xs text-slate-500">Średni czas odpowiedzi</div><div class="text-3xl font-bold text-slate-900" x-text="adm.stats.avg_days_to_answer!=null?adm.stats.avg_days_to_answer+' dni':'—'"></div></div>
+        <div class="bg-white border rounded-lg p-4"><div class="text-xs text-red-600">Otwarte po terminie</div><div class="text-3xl font-bold text-red-600" x-text="adm.stats.overdue_open"></div></div>
+      </div>
+      <div class="grid lg:grid-cols-3 gap-5">
+        <div class="bg-white border rounded-lg p-5"><h3 class="font-semibold mb-3">Wnioski wg miesiąca wpływu</h3>
+          <template x-for="(n,m) in adm.stats.by_month"><div class="flex items-center gap-2 text-xs mb-1.5"><span class="w-16 text-slate-500" x-text="m"></span>
+            <div class="flex-1 bg-slate-100 rounded h-4"><div class="bg-[#0b3d91] h-4 rounded" :style="'width:'+barW(n,adm.stats.by_month)+'%'"></div></div><span class="w-6 text-right font-semibold" x-text="n"></span></div></template></div>
+        <div class="bg-white border rounded-lg p-5"><h3 class="font-semibold mb-3">Statusy</h3>
+          <template x-for="(n,st) in adm.stats.by_status"><div class="flex items-center gap-2 text-xs mb-1.5"><span class="w-28"><span class="pill" :class="'st-'+st" x-text="statusShort(st)"></span></span>
+            <div class="flex-1 bg-slate-100 rounded h-4"><div class="bg-[#f28c28] h-4 rounded" :style="'width:'+barW(n,adm.stats.by_status)+'%'"></div></div><span class="w-6 text-right font-semibold" x-text="n"></span></div></template>
+          <h3 class="font-semibold mt-4 mb-2">Wnioskodawcy</h3>
+          <div class="flex flex-wrap gap-1"><template x-for="(n,t) in adm.stats.requester_types"><span class="pill bg-slate-100 text-slate-700" x-text="t+': '+n"></span></template></div></div>
+        <div class="bg-white border rounded-lg p-5"><h3 class="font-semibold mb-3">Najczęściej właściwe komórki</h3>
+          <template x-for="(n,c) in adm.stats.top_departments"><div class="flex items-center gap-2 text-xs mb-1.5"><span class="w-14 font-mono" x-text="c"></span>
+            <div class="flex-1 bg-slate-100 rounded h-4"><div class="bg-emerald-600 h-4 rounded" :style="'width:'+barW(n,adm.stats.top_departments)+'%'"></div></div><span class="w-6 text-right font-semibold" x-text="n"></span></div></template>
+          <p x-show="!Object.keys(adm.stats.top_departments).length" class="text-xs text-slate-400">Brak danych (propozycje wydziałów pojawiają się przy wniosku wgranym z AI).</p></div>
+      </div>
+      <div class="grid lg:grid-cols-3 gap-5">
+        <div class="bg-white border rounded-lg p-5 text-sm"><h3 class="font-semibold mb-3">Rozpoznane dokumenty</h3>
+          <div>Łącznie: <b x-text="adm.stats.documents.total"></b> · pisma odręczne: <b x-text="adm.stats.documents.handwritten"></b></div>
+          <div class="flex flex-wrap gap-1 mt-2"><template x-for="(n,m) in adm.stats.documents.methods"><span class="text-xs px-1.5 rounded" :class="methCls(m)" x-text="m+': '+n"></span></template></div></div>
+        <div class="lg:col-span-2 bg-white border rounded-lg p-5"><h3 class="font-semibold mb-1">Zużycie AI</h3>
+          <p class="text-xs text-slate-500 mb-2" x-text="adm.stats.ai_tokens.calls+' wywołań · '+fmtN(adm.stats.ai_tokens.input)+' tokenów wejściowych · '+fmtN(adm.stats.ai_tokens.output)+' wyjściowych'"></p>
+          <table class="w-full text-xs"><thead><tr><th class="px-2 py-1.5 text-left">Model</th><th class="px-2 py-1.5 text-left">Zadanie</th><th class="px-2 py-1.5 text-right">Wywołania</th><th class="px-2 py-1.5 text-right">Tokeny we/wy</th><th class="px-2 py-1.5 text-right">Śr. czas</th></tr></thead>
+          <tbody><template x-for="u in adm.stats.ai_usage"><tr class="border-t"><td class="px-2 py-1.5 font-mono" x-text="u.model"></td><td class="px-2 py-1.5" x-text="u.purpose"></td><td class="px-2 py-1.5 text-right" x-text="u.n"></td>
+            <td class="px-2 py-1.5 text-right" x-text="fmtN(u.pt)+' / '+fmtN(u.ct)"></td><td class="px-2 py-1.5 text-right" x-text="u.avg_s!=null?u.avg_s+' s':'—'"></td></tr></template>
+          <tr x-show="!adm.stats.ai_usage.length"><td colspan="5" class="p-3 text-center text-slate-400">Brak wywołań AI od uruchomienia rejestru</td></tr></tbody></table></div>
+      </div>
+    </div></template></div>
+
+    <!-- SYSTEM -->
+    <div x-show="adminTab==='system'"><template x-if="adm.system"><div class="space-y-5">
+      <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+        <div class="bg-white border rounded-lg p-4"><h3 class="font-semibold mb-2">Aplikacja</h3><div>Działa od: <b x-text="fmtUptime(adm.system.app.uptime_s)"></b></div><div class="text-xs text-slate-500" x-text="adm.system.app.version"></div>
+          <div class="text-xs mt-2" :class="adm.system.security.admin_password_set?'text-emerald-700':'text-red-600'" x-text="adm.system.security.admin_password_set?'✓ hasło administratora ustawione':'✗ brak hasła administratora'"></div>
+          <div class="text-xs text-emerald-700">✓ brak automatycznej wysyłki</div></div>
+        <div class="bg-white border rounded-lg p-4"><h3 class="font-semibold mb-2">AI</h3><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full" :class="adm.system.ai.enabled?'bg-emerald-500':'bg-red-500'"></span><span x-text="adm.system.ai.provider"></span></div>
+          <div class="text-xs text-slate-500 mt-1" x-text="'tekst: '+adm.system.ai.model+' · skany: '+adm.system.ai.vision_model"></div>
+          <div class="text-xs text-slate-500" x-show="adm.system.ai.last_call" x-text="adm.system.ai.last_call?('ostatnie wywołanie: '+adm.system.ai.last_call.at+' ('+adm.system.ai.last_call.purpose+')'):''"></div></div>
+        <div class="bg-white border rounded-lg p-4"><h3 class="font-semibold mb-2">OCR</h3><div class="text-xs" x-text="adm.system.ocr.tesseract"></div>
+          <div class="text-xs text-slate-500" x-text="'języki: '+(adm.system.ocr.languages||[]).join(', ')"></div>
+          <div class="text-xs text-slate-500" x-text="'limit: '+adm.system.ocr.timeout_s+' s · wątki: '+(adm.system.ocr.omp_thread_limit||'auto')"></div></div>
+        <div class="bg-white border rounded-lg p-4"><h3 class="font-semibold mb-2">Dane</h3><div class="text-xs">Baza: <b x-text="fmtB(adm.system.storage.db_bytes)"></b> · podglądy: <b x-text="fmtB(adm.system.storage.previews_bytes)"></b></div>
+          <div class="text-xs text-slate-500" x-text="'wolne na dysku: '+fmtB(adm.system.storage.disk_free_bytes)+' z '+fmtB(adm.system.storage.disk_total_bytes)"></div>
+          <div class="flex flex-wrap gap-1 mt-2"><template x-for="(n,t) in adm.system.counts"><span class="text-[10px] px-1.5 rounded bg-slate-100" x-text="({requests:'wnioski',responses:'odpowiedzi',documents:'dokumenty',archive:'archiwum',knowledge:'wiedza',audit:'dziennik',ai_usage:'wywołania AI'})[t]+': '+n"></span></template></div></div>
+      </div>
+      <div class="grid lg:grid-cols-3 gap-5">
+        <div class="lg:col-span-2 bg-white border rounded-lg p-5">
+          <div class="flex flex-wrap items-center gap-2 mb-3"><h3 class="font-semibold">Kopie zapasowe</h3><span class="text-xs text-slate-500">automatycznie raz dziennie · przechowywane 30 ostatnich</span>
+            <button class="ml-auto bg-[#00305f] text-white px-3 py-1.5 rounded text-sm" @click="backupCreate()">Utwórz kopię teraz</button>
+            <button class="border px-3 py-1.5 rounded text-sm bg-white" @click="adminDownload('/api/admin/backup','udip_kopia.db')">⬇ Pobierz bieżącą</button></div>
+          <table class="w-full text-sm"><tbody><template x-for="b in adm.system.backups" :key="b.name"><tr class="border-t">
+            <td class="px-2 py-2 font-mono text-xs" x-text="b.name"></td><td class="px-2 py-2 text-xs text-slate-500" x-text="fmtB(b.bytes)"></td>
+            <td class="px-2 py-2 text-right whitespace-nowrap"><button class="text-xs text-blue-700 mr-3" @click="adminDownload('/api/admin/backup?name='+encodeURIComponent(b.name), b.name)">pobierz</button>
+              <button class="text-xs text-amber-700" @click="restoreBackup(b.name)">przywróć</button></td></tr></template>
+            <tr x-show="!adm.system.backups.length"><td class="p-3 text-center text-slate-400 text-sm">Brak kopii</td></tr></tbody></table>
+        </div>
+        <div class="space-y-4">
+          <div class="bg-white border rounded-lg p-5 text-sm"><h3 class="font-semibold mb-1">Przywróć z pliku</h3>
+            <p class="text-xs text-slate-500 mb-2">Przed przywróceniem system automatycznie tworzy kopię bezpieczeństwa bieżących danych.</p>
+            <input type="file" accept=".db" x-ref="restoreFile" class="mb-2"><button class="border border-amber-600 text-amber-800 px-3 py-1.5 rounded text-sm w-full" @click="restoreFile()">Przywróć z pliku</button></div>
+          <div class="bg-white border border-red-200 rounded-lg p-5 text-sm"><h3 class="font-semibold text-red-700 mb-1">Reset do danych demonstracyjnych</h3>
+            <p class="text-xs text-slate-500 mb-2">Usuwa wnioski, dokumenty i archiwum, wczytuje dane demo. Ustawienia i dziennik zostają. Najpierw powstaje kopia bezpieczeństwa.</p>
+            <input x-model="adm.resetTxt" placeholder="wpisz RESET" class="border rounded px-2 py-1.5 w-full mb-2 text-sm">
+            <button class="bg-red-600 text-white px-3 py-1.5 rounded text-sm w-full disabled:opacity-40" :disabled="adm.resetTxt!=='RESET'" @click="resetDemo()">Resetuj dane</button></div>
+        </div>
+      </div>
+    </div></template></div>
+  </div>
+</section>
+
 <!-- ================= PANEL WNIOSKU ================= -->
 <div x-show="cur" x-cloak class="fixed inset-0 bg-black/30 z-40" @click.self="cur=null">
   <div class="absolute right-0 top-0 h-full w-full max-w-[1100px] bg-slate-50 shadow-2xl overflow-y-auto" x-show="cur" style="padding-bottom:env(safe-area-inset-bottom)">
@@ -647,10 +816,11 @@
 function app(){return{
   tabs:[{id:'cal',label:'Kalendarz wniosków'},{id:'arch',label:'Archiwum i baza wiedzy'},{id:'rec',label:'Rozpoznawanie dokumentów'},{id:'anon',label:'Anonimizacja dokumentu'}],
   tab:'cal', view:'table', cfg:{statuses:{}}, items:[], years:[], year:'', hideDone:false, depts:[], busy:'', toast:'', dragOver:false,
-  cur:null, edit:{}, mode:'anon', dv:{text:'',spans:[]}, month:new Date(), archive:[], knowledge:[], archQ:'', cats:[], kView:null, ver:null, docs:[], doc:null, forceVision:false, allReqs:[], selReq:'', kwDays:30, sa:{text:'',spans:null,result:''},
-  async init(){ this.cfg=await (await fetch('/api/config')).json(); this.depts=await (await fetch('/api/departments')).json(); this.cats=await (await fetch('/api/anonymization-categories')).json();
+  cur:null, edit:{}, mode:'anon', dv:{text:'',spans:[]}, month:new Date(), archive:[], knowledge:[], archQ:'', cats:[], kView:null, ver:null, me:'', adminToken:'', adminPw:'', adminErr:'', adminTab:'settings', adm:{settings:null,form:{},err:'',test:null,audit:[],actors:[],q:'',actor:'',otype:'',stats:null,system:null,resetTxt:''}, docs:[], doc:null, forceVision:false, allReqs:[], selReq:'', kwDays:30, sa:{text:'',spans:null,result:''},
+  async init(){ try{ this.me=localStorage.getItem('udip_me')||''; this.adminToken=sessionStorage.getItem('udip_admin')||'' }catch(e){}  this.cfg=await (await fetch('/api/config')).json(); this.depts=await (await fetch('/api/departments')).json(); this.cats=await (await fetch('/api/anonymization-categories')).json();
     this.year=String(new Date().getFullYear()); await this.load(); if(!this.years.map(String).includes(this.year)) {this.year=''; await this.load();} this.loadArchive(); },
-  async api(url,opt={}){ const r=await fetch(url,opt); if(!r.ok){let m=r.statusText; try{m=(await r.json()).detail}catch(e){} throw new Error(m)} return r.json() },
+  hdrs(h={}){ const o={...h}; if(this.me) o['X-User']=encodeURIComponent(this.me); if(this.adminToken) o['X-Admin-Token']=this.adminToken; return o },
+  async api(url,opt={}){ opt={...opt, headers:this.hdrs(opt.headers||{})}; const r=await fetch(url,opt); if(r.status===401 && url.startsWith('/api/admin') && !url.endsWith('/login')){ this.adminLogout(true) } if(!r.ok){let m=r.statusText; try{m=(await r.json()).detail}catch(e){} throw new Error(m)} return r.json() },
   say(m){this.toast=m; setTimeout(()=>this.toast='',3500)},
   async load(){ const d=await this.api('/api/requests'+(this.year?'?year='+this.year:'')); this.items=d.items; this.years=d.years; },
   get filtered(){ return this.items.filter(r=>!(this.hideDone&&r.status==='wyslana')) },
@@ -739,6 +909,37 @@ function app(){return{
   async importArchive(){ this.busy='Paruję wnioski z odpowiedziami i zapisuję do archiwum…';
     try{ const r=await this.api('/api/documents/import-archive',{method:'POST'}); this.say(`Dodano do archiwum: ${r.added.length} spraw${r.skipped.length?(' · pominięto: '+r.skipped.length):''}`); this.loadArchive() }catch(e){ this.say('Błąd: '+e.message) } this.busy='' },
   anonFromDoc(){ this.sa={text:this.doc.text,spans:null,result:''}; this.doc=null; this.tab='anon'; this.$nextTick(()=>this.anonPaste()) },
+
+  // ---- administracja ----
+  saveMe(){ try{ localStorage.setItem('udip_me', this.me.trim()) }catch(e){} },
+  openAdmin(){ this.tab='admin'; if(this.adminToken) this.adminLoad() },
+  async adminLogin(){ this.adminErr=''; try{ const r=await this.api('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:this.adminPw,actor:this.me||'jury'})});
+      this.adminToken=r.token; this.adminPw=''; try{ sessionStorage.setItem('udip_admin',r.token) }catch(e){} this.adminLoad() }catch(e){ this.adminErr=e.message } },
+  adminLogout(expired){ this.adminToken=''; try{ sessionStorage.removeItem('udip_admin') }catch(e){} if(expired===true) this.say('Sesja administratora wygasła – zaloguj się ponownie') },
+  async adminLoad(){ if(!this.adminToken) return; try{
+      if(this.adminTab==='settings'){ const r=await this.api('/api/admin/settings'); this.adm.settings=r; this.adm.form={...r.values}; this.adm.err='' }
+      if(this.adminTab==='audit') await this.loadAudit();
+      if(this.adminTab==='stats') this.adm.stats=await this.api('/api/admin/stats');
+      if(this.adminTab==='system') this.adm.system=await this.api('/api/admin/system');
+    }catch(e){ this.say('Błąd: '+e.message) } },
+  async loadAudit(){ const q=new URLSearchParams({q:this.adm.q,actor:this.adm.actor,object_type:this.adm.otype}); const r=await this.api('/api/admin/audit?'+q); this.adm.audit=r.items; this.adm.actors=r.actors },
+  async saveSettings(){ this.adm.err=''; try{ const r=await this.api('/api/admin/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:this.adm.form})});
+      this.adm.settings=r; this.adm.form={...r.values}; const n=Object.keys(r.changed||{}).length; this.say(n?('Zapisano '+n+' zmian(y) – obowiązują od razu'):'Brak zmian');
+      this.cfg=await (await fetch('/api/config')).json(); await this.load() }catch(e){ this.adm.err=e.message } },
+  optLabel(k,o){ return ({provider:{openai:'OpenAI API (chmura)',local:'Lokalny serwer AI w Urzędzie (offline)'},vision_for_scans:{'1':'tak – każdy skan','0':'nie – tylko przy niskiej pewności OCR'}}[k]||{})[o]||o },
+  async testAI(){ this.adm.test={ok:true,msg:'Łączę…'}; try{ const r=await this.api('/api/admin/test-ai',{method:'POST'}); this.adm.test={ok:true,msg:'✓ '+r.model+' odpowiada · '+r.seconds+' s'} }catch(e){ this.adm.test={ok:false,msg:'✗ '+e.message} } },
+  async adminDownload(url,name){ try{ const r=await fetch(url,{headers:this.hdrs()}); if(!r.ok) throw new Error((await r.json()).detail||r.statusText);
+      const b=await r.blob(); const cd=r.headers.get('Content-Disposition')||''; const m=cd.match(/filename="?([^";]+)"?/); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=m?m[1]:name; a.click() }catch(e){ this.say('Błąd: '+e.message) } },
+  async backupCreate(){ try{ const r=await this.api('/api/admin/backup/create',{method:'POST'}); this.say('Utworzono kopię '+r.name); this.adminLoad() }catch(e){ this.say('Błąd: '+e.message) } },
+  async restoreBackup(name){ if(!confirm('Przywrócić dane z kopii '+name+'?\nBieżące dane zostaną najpierw zapisane w kopii bezpieczeństwa.')) return;
+    try{ const fd=new FormData(); fd.append('name',name); const r=await this.api('/api/admin/restore?name='+encodeURIComponent(name),{method:'POST',body:fd}); this.say('Przywrócono · kopia bezpieczeństwa: '+r.safety_backup); await this.load(); this.adminLoad() }catch(e){ this.say('Błąd: '+e.message) } },
+  async restoreFile(){ const f=this.$refs.restoreFile.files[0]; if(!f) return this.say('Wybierz plik .db'); if(!confirm('Przywrócić dane z pliku '+f.name+'?')) return;
+    try{ const fd=new FormData(); fd.append('file',f); const r=await this.api('/api/admin/restore',{method:'POST',body:fd}); this.say('Przywrócono · kopia bezpieczeństwa: '+r.safety_backup); await this.load(); this.adminLoad() }catch(e){ this.say('Błąd: '+e.message) } },
+  async resetDemo(){ try{ const r=await this.api('/api/admin/reset-demo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:'RESET'})}); this.adm.resetTxt=''; this.say('Zresetowano · kopia bezpieczeństwa: '+r.safety_backup); await this.load(); this.loadArchive(); this.adminLoad() }catch(e){ this.say('Błąd: '+e.message) } },
+  barW(n,obj){ const mx=Math.max(1,...Object.values(obj||{})); return Math.round(100*n/mx) },
+  fmtN(n){ return (n||0).toLocaleString('pl-PL') },
+  fmtB(b){ b=b||0; return b>1e9?(b/1e9).toFixed(1)+' GB':(b>1e6?(b/1e6).toFixed(1)+' MB':Math.round(b/1e3)+' kB') },
+  fmtUptime(s){ const d=Math.floor(s/86400), h=Math.floor(s%86400/3600), m=Math.floor(s%3600/60); return (d?d+' d ':'')+h+' h '+m+' min' },
   // ---- archiwum ----
   async loadArchive(){ const d=await this.api('/api/archive?q='+encodeURIComponent(this.archQ)); this.archive=d.items; this.knowledge=d.knowledge },
   async addArchive(ev){ this.busy='Dodaję do archiwum…'; try{ await this.api('/api/archive',{method:'POST',body:new FormData(ev.target)}); ev.target.reset(); this.loadArchive(); this.say('Dodano do archiwum') }catch(e){this.say('Błąd: '+e.message)} this.busy='' },
