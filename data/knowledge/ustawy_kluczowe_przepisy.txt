@@ -1,0 +1,16 @@
+Podstawy prawne (pełne teksty: ISAP)
+1. Ustawa z dnia 6 września 2001 r. o dostępie do informacji publicznej – https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=wdu20011121198
+2. Ustawa z dnia 14 czerwca 1960 r. – Kodeks postępowania administracyjnego – https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=wdu19600300168
+
+Kluczowe przepisy UDIP (streszczenie robocze – do weryfikacji z tekstem jednolitym):
+- art. 1 ust. 1 – informacją publiczną jest każda informacja o sprawach publicznych.
+- art. 2 ust. 1–2 – prawo dostępu przysługuje każdemu; od wnioskodawcy nie wolno żądać wykazania interesu prawnego lub faktycznego.
+- art. 3 ust. 1 pkt 1 – informację przetworzoną udostępnia się w zakresie, w jakim jest to szczególnie istotne dla interesu publicznego.
+- art. 5 ust. 1–2 – ograniczenia: informacje niejawne i tajemnice ustawowo chronione; prywatność osoby fizycznej i tajemnica przedsiębiorcy (nie dotyczy osób pełniących funkcje publiczne w związku z ich pełnieniem).
+- art. 10 ust. 1 – informacja nieudostępniona w BIP jest udostępniana na wniosek.
+- art. 13 ust. 1 – udostępnienie bez zbędnej zwłoki, nie później niż w terminie 14 dni od dnia złożenia wniosku.
+- art. 13 ust. 2 – gdy termin nie może być dotrzymany: powiadomienie o powodach i terminie, nie dłuższym niż 2 miesiące od złożenia wniosku.
+- art. 14 – udostępnienie w sposób i formie zgodnych z wnioskiem, chyba że środki techniczne na to nie pozwalają.
+- art. 15 – opłata tylko przy dodatkowych kosztach; powiadomienie w ciągu 14 dni.
+- art. 16 ust. 1 – odmowa udostępnienia i umorzenie postępowania następują w drodze decyzji; stosuje się przepisy KPA z modyfikacjami art. 16 ust. 2.
+KPA – pomocniczo: art. 57 (obliczanie terminów; koniec terminu w sobotę lub dzień ustawowo wolny – następny dzień roboczy).
