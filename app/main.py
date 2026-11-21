@@ -7,7 +7,7 @@ from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import ai, admin, anonymize, db, letters, seed, settings
+from . import ai, admin, anonymize, auth, db, letters, seed, settings
 from .verify import verify as verify_draft
 from .deadlines import compute_deadline, is_working_day
 from datetime import timedelta
@@ -42,13 +42,17 @@ STATUSES = {"nowy": "a) Brak działań", "w_wydziale": "b) Zapytania wysłane do
 
 app = FastAPI(title="Asystent UDIP – UM Bydgoszcz")
 app.include_router(admin.router)
+app.include_router(auth.router)
+app.include_router(auth.admin_router)
 app.middleware("http")(admin.audit_middleware)
+app.middleware("http")(auth.auth_middleware)  # dodane jako ostatnie = wykonywane jako pierwsze
 PREV_DIR = os.path.join(os.path.dirname(os.path.abspath(db.DB_PATH)), "previews")
 
 
 @app.on_event("startup")
 def startup():
     db.init()
+    auth.bootstrap()
     if os.getenv("SEED_DEMO", "1") == "1":
         seed.run()
     try:  # automatyczna kopia zapasowa raz dziennie przy starcie + rotacja (30 ostatnich)
@@ -211,7 +215,7 @@ def update_req(rid: int, fields: dict, note: str = None):
 @app.get("/api/config")
 def config():
     return {"ai": ai.enabled(), "model": ai.model() if ai.enabled() else None,
-            "provider": ai.provider_label(), "admin_enabled": bool(os.getenv("ADMIN_PASSWORD")),
+            "provider": ai.provider_label(), "admin_enabled": True,
             "dept_lead_days": settings.get_int("dept_lead_days", 3),
             "statuses": STATUSES, "today": date.today().isoformat()}
 
@@ -230,14 +234,34 @@ def list_requests(year: int = None):
             rows = c.execute("SELECT * FROM requests ORDER BY received_date ASC, id ASC").fetchall()
         years = [r[0] for r in c.execute("SELECT DISTINCT year FROM requests ORDER BY year DESC").fetchall()]
     items = [decorate(db.row(r)) for r in rows]
+    u = auth.current_user.get()
+    if u and u["role"] == "wydzial":
+        with db.conn() as c:
+            resp_by = {}
+            for rr in c.execute("SELECT request_id, department FROM responses").fetchall():
+                resp_by.setdefault(rr["request_id"], []).append({"department": rr["department"]})
+        items = [it for it in items if auth.visible_to_dept({**it, "responses": resp_by.get(it["id"], [])}, u["dept_code"])]
     for it in items:
         it.pop("content", None); it.pop("draft", None); it.pop("final_text", None)
     return {"items": items, "years": years}
 
 
+def _check_dept_access(r: dict):
+    u = auth.current_user.get()
+    if u and u["role"] == "wydzial" and not auth.visible_to_dept(r, u["dept_code"]):
+        raise HTTPException(403, "Ta sprawa nie jest przypisana do Twojej komórki")
+
+
 @app.get("/api/requests/{rid}")
 def request_detail(rid: int):
-    return get_req(rid)
+    r = get_req(rid)
+    _check_dept_access(r)
+    u = auth.current_user.get()
+    if u and u["role"] == "wydzial":  # wydział nie widzi projektu pisma, pism procesowych ani odpowiedzi innych komórek
+        for k in ("draft", "final_text", "anon_spans", "verification", "letters", "similar"):
+            r.pop(k, None)
+        r["responses"] = [x for x in r["responses"] if x.get("department") == u["dept_code"]]
+    return r
 
 
 @app.post("/api/requests/upload")
@@ -359,7 +383,10 @@ def delete_request(rid: int):
 
 @app.post("/api/requests/{rid}/responses")
 async def add_response(rid: int, department: str = Form(""), text: str = Form(""), file: UploadFile = File(None)):
-    get_req(rid)
+    _check_dept_access(get_req(rid))
+    u = auth.current_user.get()
+    if u and u["role"] == "wydzial":
+        department = u["dept_code"]  # wydział może dodać odpowiedź tylko w swoim imieniu
     fname = None
     if file is not None and file.filename:
         data = await file.read()
@@ -374,11 +401,17 @@ async def add_response(rid: int, department: str = Form(""), text: str = Form(""
         update_req(rid, {"status": "w_wydziale"}, f"wpłynęła odpowiedź: {department}")
     else:
         update_req(rid, {}, f"wpłynęła odpowiedź: {department}")
-    return get_req(rid)
+    return request_detail(rid)
 
 
 @app.delete("/api/responses/{resp_id}")
 def delete_response(resp_id: int):
+    u = auth.current_user.get()
+    if u and u["role"] == "wydzial":
+        with db.conn() as c:
+            rr = c.execute("SELECT department FROM responses WHERE id=?", (resp_id,)).fetchone()
+        if not rr or rr["department"] != u["dept_code"]:
+            raise HTTPException(403, "Możesz usunąć tylko odpowiedź swojej komórki")
     with db.conn() as c:
         c.execute("DELETE FROM responses WHERE id=?", (resp_id,))
     return {"ok": True}

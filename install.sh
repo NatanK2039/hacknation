@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Instalacja Asystenta UDIP na czystym Ubuntu 22.04/24.04 (uruchom jako root w katalogu z plikami aplikacji)
-# Użycie: sudo bash install.sh <domena-lub-IP> <login> <hasło>
+# Użycie: sudo bash install.sh <domena-lub-IP> <hasło-administratora>
+# Logowanie odbywa się w aplikacji (konta z rolami). Login startowy: admin.
 set -euo pipefail
 DOMAIN="${1:?Podaj domenę (np. udip.itmagic.pl) albo IP}"
-USER_="${2:-jury}"
-PASS="${3:?Podaj hasło dostępu do aplikacji}"
+PASS="${2:?Podaj hasło administratora (min. 10 znaków, litery i cyfry)}"
 APP_DIR=/opt/asystent-udip
 
 echo ">> Aktualizacja systemu i pakiety bazowe"
@@ -28,15 +28,18 @@ cd "$APP_DIR"
 mkdir -p db
 [ -f .env ] || cp .env.example .env
 chmod 600 .env
+grep -q "^ADMIN_PASSWORD=." .env || sed -i "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=$PASS|" .env
 
-echo ">> Caddy (HTTPS + hasło)"
-HASH=$(docker run --rm caddy:2 caddy hash-password --plaintext "$PASS")
-if [[ "$DOMAIN" =~ ^[0-9.]+$ ]]; then SITE=":80"; else SITE="$DOMAIN"; fi
+echo ">> Caddy (HTTPS)"
+if [[ "$DOMAIN" =~ ^[0-9.]+$ ]]; then SITE=":80"; sed -i "s|^COOKIE_SECURE=.*|COOKIE_SECURE=0|" .env; else SITE="$DOMAIN"; fi
 cat > Caddyfile <<CADDY
 $SITE {
     encode gzip
-    basic_auth {
-        $USER_ $HASH
+    header {
+        X-Frame-Options DENY
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+        -Server
     }
     request_body {
         max_size 50MB
@@ -54,4 +57,4 @@ docker compose up -d --build
 echo
 echo "GOTOWE. Wpisz klucz API:  nano $APP_DIR/.env   (OPENAI_API_KEY=...)  potem:  cd $APP_DIR && docker compose up -d"
 if [ "$SITE" = ":80" ]; then URL="http://$DOMAIN"; else URL="https://$DOMAIN"; fi
-echo "Adres: $URL   login: $USER_"
+echo "Adres: $URL   login: admin (hasło podane przy instalacji)"

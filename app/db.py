@@ -38,6 +38,15 @@ CREATE TABLE IF NOT EXISTS documents (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, full_name TEXT, initials TEXT, role TEXT NOT NULL,
+  dept_code TEXT, password_hash TEXT NOT NULL, active INTEGER DEFAULT 1, must_change INTEGER DEFAULT 1,
+  last_login TEXT, created_at TEXT DEFAULT (datetime('now','localtime'))
+);
+CREATE TABLE IF NOT EXISTS sessions (
+  token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires TEXT NOT NULL, ip TEXT, ua TEXT,
+  created_at TEXT DEFAULT (datetime('now','localtime'))
+);
 CREATE TABLE IF NOT EXISTS letters (
   id INTEGER PRIMARY KEY AUTOINCREMENT, request_id INTEGER, kind TEXT, title TEXT, text TEXT, new_date TEXT, applied INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now','localtime'))
