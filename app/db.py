@@ -38,6 +38,10 @@ CREATE TABLE IF NOT EXISTS documents (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE IF NOT EXISTS letters (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, request_id INTEGER, kind TEXT, title TEXT, text TEXT, new_date TEXT, applied INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now','localtime'))
+);
 CREATE TABLE IF NOT EXISTS audit (
   id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT DEFAULT (datetime('now','localtime')), actor TEXT, action TEXT,
   object_type TEXT, object_id TEXT, details TEXT, method TEXT, path TEXT, status INTEGER, ip TEXT

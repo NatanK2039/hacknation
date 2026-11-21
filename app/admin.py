@@ -75,6 +75,11 @@ ROUTES = [
     ("POST", r"^/api/requests/(\d+)/departments$", "propozycja wydziałów (AI)", "wniosek"),
     ("GET", r"^/api/requests/(\d+)/docx$", "eksport pisma do DOCX", "wniosek"),
     ("GET", r"^/api/requests/(\d+)/txt$", "eksport pisma do TXT", "wniosek"),
+    ("POST", r"^/api/requests/(\d+)/letters$", "przygotowanie pisma (kwerenda / doprecyzowanie / odmowa)", "wniosek"),
+    ("PATCH", r"^/api/letters/(\d+)$", "edycja pisma", "pismo"),
+    ("DELETE", r"^/api/letters/(\d+)$", "usunięcie pisma", "pismo"),
+    ("GET", r"^/api/letters/(\d+)/docx$", "eksport pisma do DOCX", "pismo"),
+    ("POST", r"^/api/letters/(\d+)/apply$", "zastosowanie nowego terminu z pisma", "pismo"),
     ("POST", r"^/api/recognize$", "rozpoznanie dokumentu", "dokument"),
     ("PATCH", r"^/api/documents/(\d+)$", "korekta rozpoznanego dokumentu", "dokument"),
     ("DELETE", r"^/api/documents/(\d+)$", "usunięcie dokumentu", "dokument"),
@@ -88,6 +93,8 @@ ROUTES = [
     ("POST", r"^/api/anonymize/apply$", "anonimizacja dokumentu (zatwierdzenie)", "dokument"),
     ("POST", r"^/api/anonymize/docx$", "eksport zanonimizowanego dokumentu", "dokument"),
     ("PUT", r"^/api/admin/settings$", "zmiana ustawień", "ustawienia"),
+    ("PUT", r"^/api/admin/departments$", "zmiana słownika komórek", "ustawienia"),
+    ("POST", r"^/api/admin/departments/reset$", "przywrócenie słownika komórek z BIP", "ustawienia"),
     ("GET", r"^/api/admin/backup$", "pobranie kopii zapasowej", "system"),
     ("POST", r"^/api/admin/backup/create$", "utworzenie kopii zapasowej", "system"),
     ("POST", r"^/api/admin/restore$", "przywrócenie kopii zapasowej", "system"),
@@ -179,6 +186,58 @@ def settings_put(body: dict = Body(...)):
         raise HTTPException(400, str(e))
     add_detail(json.dumps(changed, ensure_ascii=False) if changed else "bez zmian")
     return {"changed": changed, **settings_get()}
+
+
+# ---------------- słowniki: komórki organizacyjne ----------------
+
+@router.get("/departments", dependencies=[Depends(require_admin)])
+def departments_get():
+    from .main import depts, DEPTS_FILE
+    with db.conn() as c:
+        custom = c.execute("SELECT 1 FROM settings WHERE key='departments_json'").fetchone() is not None
+    src = json.load(open(DEPTS_FILE, encoding="utf-8")).get("source", "")
+    return {"items": depts(), "custom": custom, "source": src}
+
+
+@router.put("/departments", dependencies=[Depends(require_admin)])
+def departments_put(body: dict = Body(...)):
+    items, seen, out = body.get("items") or [], set(), []
+    for i, d in enumerate(items, 1):
+        code = str(d.get("code", "")).strip()
+        name = str(d.get("name", "")).strip()
+        if not code and not name:
+            continue
+        if not re.fullmatch(r"[\wĄĆĘŁŃÓŚŹŻąćęłńóśźż.\-]{1,16}", code):
+            raise HTTPException(400, f"Wiersz {i}: nieprawidłowy symbol „{code}” (litery, cyfry, kropka, myślnik; maks. 16 znaków)")
+        if code.upper() in seen:
+            raise HTTPException(400, f"Wiersz {i}: symbol „{code}” występuje więcej niż raz")
+        if not name:
+            raise HTTPException(400, f"Wiersz {i}: brak nazwy komórki")
+        url = str(d.get("url", "")).strip()
+        if url and not url.startswith(("http://", "https://")):
+            raise HTTPException(400, f"Wiersz {i}: adres strony musi zaczynać się od http:// lub https://")
+        seen.add(code.upper())
+        out.append({"code": code, "name": name, "scope": str(d.get("scope", "")).strip(), "url": url, **({"external": True} if d.get("external") else {})})
+    if not out:
+        raise HTTPException(400, "Lista komórek nie może być pusta")
+    with db.conn() as c:
+        old = c.execute("SELECT value FROM settings WHERE key='departments_json'").fetchone()
+        c.execute("INSERT INTO settings(key,value) VALUES('departments_json',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                  (json.dumps(out, ensure_ascii=False),))
+    from .main import depts
+    before = {d["code"] for d in (json.loads(old["value"]) if old else [])} or None
+    after = {d["code"] for d in out}
+    add_detail(f"{len(out)} komórek" + (f"; dodano: {', '.join(sorted(after - before))}" if before and after - before else "")
+               + (f"; usunięto: {', '.join(sorted(before - after))}" if before and before - after else ""))
+    return departments_get()
+
+
+@router.post("/departments/reset", dependencies=[Depends(require_admin)])
+def departments_reset():
+    with db.conn() as c:
+        c.execute("DELETE FROM settings WHERE key='departments_json'")
+    add_detail("przywrócono listę z BIP")
+    return departments_get()
 
 
 # ---------------- stan systemu ----------------

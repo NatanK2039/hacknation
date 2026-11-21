@@ -7,7 +7,7 @@ from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import ai, admin, anonymize, db, seed, settings
+from . import ai, admin, anonymize, db, letters, seed, settings
 from .verify import verify as verify_draft
 from .deadlines import compute_deadline, is_working_day
 from datetime import timedelta
@@ -24,7 +24,19 @@ def extract_text(filename, data):
 
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEPTS = json.load(open(os.path.join(BASE, "data", "departments.json"), encoding="utf-8"))["departments"]
+DEPTS_FILE = os.path.join(BASE, "data", "departments.json")
+
+
+def depts() -> list:
+    """Lista komórek: wersja edytowana w panelu administracyjnym (baza) albo domyślna z BIP (plik)."""
+    try:
+        with db.conn() as c:
+            row = c.execute("SELECT value FROM settings WHERE key='departments_json'").fetchone()
+        if row and row["value"]:
+            return json.loads(row["value"])
+    except Exception:
+        pass
+    return json.load(open(DEPTS_FILE, encoding="utf-8"))["departments"]
 STATUSES = {"nowy": "a) Brak działań", "w_wydziale": "b) Zapytania wysłane do wydziałów", "kwerenda": "c) Kwerenda / przedłużenie",
             "przygotowana": "d) Odpowiedź przygotowana", "wyslana": "e) Odpowiedź wysłana"}
 
@@ -109,6 +121,7 @@ def get_req(rid: int) -> dict:
         if not r:
             raise HTTPException(404, "Brak wniosku")
         r["responses"] = [dict(x) for x in c.execute("SELECT * FROM responses WHERE request_id=? ORDER BY id", (rid,)).fetchall()]
+        r["letters"] = [dict(x) for x in c.execute("SELECT * FROM letters WHERE request_id=? ORDER BY id DESC", (rid,)).fetchall()]
     if r.get("draft"):
         try:
             r["verification"] = verify_draft(r["draft"], r["responses"], r.get("content") or "")
@@ -170,6 +183,9 @@ def decorate(r: dict) -> dict:
         else:
             r["urgency"] = "ok"
         r["dept_deadline"] = _minus_working_days(dl, settings.get_int("dept_lead_days", 3)).isoformat()
+        if r.get("received_date"):
+            from .deadlines import add_months, next_working_day
+            r["max_deadline"] = next_working_day(add_months(date.fromisoformat(r["received_date"]), 2)).isoformat()
         r["days_since"] = (today - date.fromisoformat(r["received_date"])).days if r.get("received_date") else None
     r["status_label"] = STATUSES.get(r.get("status"), r.get("status"))
     return r
@@ -202,7 +218,7 @@ def config():
 
 @app.get("/api/departments")
 def departments():
-    return DEPTS
+    return depts()
 
 
 @app.get("/api/requests")
@@ -243,7 +259,7 @@ async def upload_request(file: UploadFile = File(...)):
     fields, dep, similar = {}, {}, []
     with ThreadPoolExecutor(3) as ex:  # równolegle: ekstrakcja danych, wydziały, podobne sprawy
         f1 = ex.submit(ai.extract_request_fields, text) if ai.enabled() else None
-        f2 = ex.submit(ai.suggest_departments, text, "", DEPTS) if ai.enabled() else None
+        f2 = ex.submit(ai.suggest_departments, text, "", depts()) if ai.enabled() else None
         f3 = ex.submit(find_similar, text)
         try:
             fields = f1.result() if f1 else {}
@@ -381,7 +397,7 @@ def refresh_departments(rid: int):
     r = get_req(rid)
     if not ai.enabled():
         raise HTTPException(400, "AI wyłączone – brak klucza API")
-    dep = ai.suggest_departments(r.get("content") or "", r.get("summary") or "", DEPTS)
+    dep = ai.suggest_departments(r.get("content") or "", r.get("summary") or "", depts())
     update_req(rid, {"departments": dep})
     return get_req(rid)
 
@@ -544,6 +560,83 @@ def similar_free(body: dict = Body(...)):
     return find_similar(body.get("text", ""))
 
 
+# ---------------- pisma procesowe (kwerenda, doprecyzowanie, odmowa) ----------------
+
+@app.post("/api/requests/{rid}/letters")
+def letter_create(rid: int, body: dict = Body(...)):
+    r = get_req(rid)
+    kind = body.get("kind")
+    nd = body.get("new_date") or None
+    if nd:
+        try:
+            ndd = date.fromisoformat(nd)
+        except ValueError:
+            raise HTTPException(400, "Nieprawidłowa data")
+        if r.get("max_deadline") and ndd > date.fromisoformat(r["max_deadline"]):
+            raise HTTPException(400, f"Nowy termin nie może przekroczyć 2 miesięcy od wpływu wniosku (najpóźniej {r['max_deadline']}, art. 13 ust. 2 UDIP)")
+    dept = body.get("dept") or ""
+    dname = next((d["name"] for d in depts() if d["code"] == dept), dept)
+    try:
+        L = letters.build(r, kind, notes=body.get("notes", ""), new_date=nd, ground=body.get("ground"), dept=dname or None, days=int(body.get("days") or 7))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    with db.conn() as c:
+        c.execute("INSERT INTO letters(request_id,kind,title,text,new_date) VALUES(?,?,?,?,?)", (rid, kind, L["title"], L["text"], nd))
+    update_req(rid, {}, f"przygotowano pismo: {L['title']}")
+    return get_req(rid)
+
+
+@app.patch("/api/letters/{lid}")
+def letter_update(lid: int, body: dict = Body(...)):
+    with db.conn() as c:
+        c.execute("UPDATE letters SET text=? WHERE id=?", (body.get("text", ""), lid))
+    return {"ok": True}
+
+
+@app.delete("/api/letters/{lid}")
+def letter_delete(lid: int):
+    with db.conn() as c:
+        c.execute("DELETE FROM letters WHERE id=?", (lid,))
+    return {"ok": True}
+
+
+def _letter(lid: int) -> dict:
+    with db.conn() as c:
+        L = c.execute("SELECT * FROM letters WHERE id=?", (lid,)).fetchone()
+    if not L:
+        raise HTTPException(404, "Brak pisma")
+    return dict(L)
+
+
+@app.get("/api/letters/{lid}/docx")
+def letter_docx(lid: int):
+    L = _letter(lid)
+    r = get_req(L["request_id"])
+    name = re.sub(r"[^\w.-]+", "_", f"{L['kind']}_{r.get('number') or lid}") + ".docx"
+    return Response(build_docx(L["text"]), media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+@app.post("/api/letters/{lid}/apply")
+def letter_apply(lid: int):
+    """Przenosi nowy termin z pisma do kalendarza (przedłużenie art. 13 ust. 2) i ustawia status."""
+    L = _letter(lid)
+    r = get_req(L["request_id"])
+    if not L.get("new_date"):
+        raise HTTPException(400, "Pismo nie wskazuje nowego terminu")
+    rd = date.fromisoformat(r["received_date"])
+    ext = (date.fromisoformat(L["new_date"]) - (rd + timedelta(days=14))).days
+    if ext < 0:
+        raise HTTPException(400, "Nowy termin jest wcześniejszy niż termin ustawowy")
+    fields = {"extended_days": ext, "deadline": compute_deadline(rd, ext).isoformat()}
+    if r["status"] in ("nowy", "w_wydziale"):
+        fields["status"] = "kwerenda"
+    update_req(r["id"], fields, f"zastosowano nowy termin z pisma ({L['title']}): {L['new_date']}")
+    with db.conn() as c:
+        c.execute("UPDATE letters SET applied=1 WHERE id=?", (lid,))
+    return get_req(r["id"])
+
+
 # ---------------- rozpoznawanie dokumentów ----------------
 
 
@@ -655,7 +748,7 @@ def _create_request_from_text(text: str, filename: str, number: str = None, rece
     dep = {}
     if ai.enabled():
         try:
-            dep = ai.suggest_departments(text, fields.get("summary", ""), DEPTS)
+            dep = ai.suggest_departments(text, fields.get("summary", ""), depts())
         except Exception as e:
             dep = {"departments": [], "error": str(e)}
     similar = find_similar(text)
