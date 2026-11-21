@@ -26,9 +26,9 @@ TYPES = {"wniosek": "Wniosek", "odpowiedz": "Odpowiedź", "kwerenda": "Kwerenda 
 
 def _tesseract(img) -> dict:
     import pytesseract
-    d = pytesseract.image_to_data(img, lang=OCR_LANG, output_type=pytesseract.Output.DICT, config="--psm 3")
+    d = pytesseract.image_to_data(img, lang=OCR_LANG, output_type=pytesseract.Output.DICT, config="--psm 3", timeout=int(os.getenv("OCR_TIMEOUT", "25")))
     words = [(w, float(c)) for w, c in zip(d["text"], d["conf"]) if w.strip() and float(c) >= 0]
-    text = pytesseract.image_to_string(img, lang=OCR_LANG, config="--psm 3")
+    text = pytesseract.image_to_string(img, lang=OCR_LANG, config="--psm 3", timeout=int(os.getenv("OCR_TIMEOUT", "25")))
     if not words:
         return {"text": text.strip(), "conf": 0.0, "words": 0, "real_words": 0}
     conf = sum(c for _, c in words) / len(words)

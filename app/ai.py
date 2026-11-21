@@ -13,7 +13,7 @@ _client = None
 def client() -> OpenAI:
     global _client
     if _client is None:
-        kw = {"api_key": os.getenv("OPENAI_API_KEY", "ollama")}
+        kw = {"api_key": os.getenv("OPENAI_API_KEY", "ollama"), "timeout": float(os.getenv("LLM_TIMEOUT", "45")), "max_retries": 2}
         if os.getenv("OPENAI_BASE_URL"):
             kw["base_url"] = os.getenv("OPENAI_BASE_URL")
         _client = OpenAI(**kw)
