@@ -37,6 +37,16 @@ CREATE TABLE IF NOT EXISTS documents (
   handwritten INTEGER DEFAULT 0, conf REAL, methods TEXT, pages TEXT, text TEXT, n_pages INTEGER, request_id INTEGER, status TEXT DEFAULT 'nowy',
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE IF NOT EXISTS audit (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT DEFAULT (datetime('now','localtime')), actor TEXT, action TEXT,
+  object_type TEXT, object_id TEXT, details TEXT, method TEXT, path TEXT, status INTEGER, ip TEXT
+);
+CREATE INDEX IF NOT EXISTS audit_at ON audit(at);
+CREATE TABLE IF NOT EXISTS ai_usage (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT DEFAULT (datetime('now','localtime')), model TEXT, purpose TEXT,
+  prompt_tokens INTEGER, completion_tokens INTEGER, seconds REAL
+);
 CREATE TABLE IF NOT EXISTS knowledge (
   id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, kind TEXT, text TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );

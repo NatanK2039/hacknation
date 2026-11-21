@@ -7,34 +7,74 @@ import os
 
 from openai import OpenAI
 
-_client = None
+_clients = {}
+
+
+def _cfg():
+    from . import settings
+    st = settings.all_settings()
+    local = st.get("provider") == "local"
+    return {"local": local, "base_url": st.get("local_base_url") if local else None,
+            "timeout": float(st.get("llm_timeout") or 45), "model": st.get("llm_model"), "vision_model": st.get("vision_model")}
 
 
 def client() -> OpenAI:
-    global _client
-    if _client is None:
-        kw = {"api_key": os.getenv("OPENAI_API_KEY", "ollama")}
-        if os.getenv("OPENAI_BASE_URL"):
-            kw["base_url"] = os.getenv("OPENAI_BASE_URL")
-        _client = OpenAI(**kw)
-    return _client
+    c = _cfg()
+    key = (c["local"], c["base_url"], c["timeout"])
+    if key not in _clients:
+        kw = {"api_key": ("ollama" if c["local"] else os.getenv("OPENAI_API_KEY", "")), "timeout": c["timeout"], "max_retries": 2}
+        if c["base_url"]:
+            kw["base_url"] = c["base_url"]
+        _clients.clear()
+        _clients[key] = OpenAI(**kw)
+    return _clients[key]
 
 
 def model() -> str:
-    return os.getenv("LLM_MODEL", "gpt-4o-mini")
+    return _cfg()["model"] or "gpt-4o-mini"
+
+
+def vision_model() -> str:
+    return _cfg()["vision_model"] or "gpt-4.1"
+
+
+def provider_label() -> str:
+    c = _cfg()
+    if c["local"]:
+        return f"lokalny serwer AI ({c['base_url']})"
+    return "OpenAI API" if os.getenv("OPENAI_API_KEY") else "brak – tryb bez AI"
 
 
 def enabled() -> bool:
-    return bool(os.getenv("OPENAI_API_KEY") or os.getenv("OPENAI_BASE_URL"))
+    c = _cfg()
+    return bool(c["local"] and c["base_url"]) or (not c["local"] and bool(os.getenv("OPENAI_API_KEY")))
 
 
-def chat_json(system: str, user: str, temperature: float = 0.1) -> dict:
+def track(resp, purpose: str, mdl: str = None, started: float = None):
+    """Rejestr zużycia AI (tokeny, czas) – do statystyk w panelu administracyjnym."""
+    try:
+        import time
+        from . import db
+        u = getattr(resp, "usage", None)
+        with db.conn() as c:
+            from .admin import now_local
+            c.execute("INSERT INTO ai_usage(at,model,purpose,prompt_tokens,completion_tokens,seconds) VALUES(?,?,?,?,?,?)",
+                      (now_local(), mdl or model(), purpose, getattr(u, "prompt_tokens", 0) or 0, getattr(u, "completion_tokens", 0) or 0,
+                       round(time.time() - started, 2) if started else None))
+    except Exception:
+        pass
+
+
+def chat_json(system: str, user: str, temperature: float = 0.1, purpose: str = "json") -> dict:
+    import time
+    t0 = time.time()
     r = client().chat.completions.create(
         model=model(),
         temperature=temperature,
         response_format={"type": "json_object"},
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
     )
+    track(r, purpose, started=t0)
     txt = r.choices[0].message.content or "{}"
     try:
         return json.loads(txt)
@@ -43,12 +83,15 @@ def chat_json(system: str, user: str, temperature: float = 0.1) -> dict:
         return json.loads(txt[s:e + 1]) if s >= 0 else {}
 
 
-def chat_text(system: str, user: str, temperature: float = 0.2) -> str:
+def chat_text(system: str, user: str, temperature: float = 0.2, purpose: str = "tekst") -> str:
+    import time
+    t0 = time.time()
     r = client().chat.completions.create(
         model=model(),
         temperature=temperature,
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
     )
+    track(r, purpose, started=t0)
     return (r.choices[0].message.content or "").strip()
 
 
@@ -61,7 +104,7 @@ def extract_request_fields(text: str) -> dict:
            "requester_type (mieszkaniec|dziennikarz|organizacja|firma|radny|inny), subject (temat, maks. 12 słów), "
            "summary (krótki opis czego dotyczy wniosek, 1-2 zdania), questions (lista pytań/żądań z wniosku – przepisane możliwie dosłownie, BEZ dopisywania imion, nazw ani faktów, których nie ma w treści), "
            "Nie uzupełniaj danych z własnej wiedzy – tylko to, co jest w piśmie. delivery (preferowany sposób udostępnienia: email|poczta|epuap|inny|null), number (sygnatura/numer jeśli występuje w piśmie, inaczej null).")
-    return chat_json(sys, text[:15000])
+    return chat_json(sys, text[:15000], purpose="ekstrakcja danych")
 
 
 def suggest_departments(text: str, summary: str, departments: list) -> list:
@@ -77,7 +120,7 @@ def suggest_departments(text: str, summary: str, departments: list) -> list:
            "\"protected_info_risk\": true/false, \"protected_info_note\": \"czy wniosek może dotyczyć informacji chronionej (art. 5 UDIP: prywatność, tajemnica przedsiębiorcy) – wtedy projekt decyzji odmownej (§ 11 ust. 9)\", "
            "\"bip_hint\": \"czy informacja może być już opublikowana w BIP (§ 8 ust. 1 – wtedy wskazuje się adres strony) albo null\"}")
     user = f"LISTA KOMÓREK:\n{dep_txt}\n\nSTRESZCZENIE: {summary}\n\nWNIOSEK:\n{text[:8000]}"
-    return chat_json(sys, user)
+    return chat_json(sys, user, purpose="wydziały")
 
 
 def rerank_similar(request_text: str, candidates: list) -> list:
@@ -86,7 +129,7 @@ def rerank_similar(request_text: str, candidates: list) -> list:
     cand = "\n\n".join(f"[{c['id']}] ({c['received_date']}) {c['subject']}\n{c['request_text'][:600]}" for c in candidates)
     sys = ("Oceń podobieństwo archiwalnych wniosków UDIP do nowego wniosku. Zwróć JSON {\"items\": [{\"id\": <int>, "
            "\"score\": 0-100, \"why\": \"1 zdanie\"}]} posortowane malejąco, maks. 5, pomiń zupełnie niepodobne (score<25).")
-    out = chat_json(sys, f"NOWY WNIOSEK:\n{request_text[:4000]}\n\nARCHIWUM:\n{cand}")
+    out = chat_json(sys, purpose="podobne sprawy", user=f"NOWY WNIOSEK:\n{request_text[:4000]}\n\nARCHIWUM:\n{cand}")
     return out.get("items", [])
 
 
@@ -119,7 +162,7 @@ def draft_letter(req: dict, responses: list, similar: list, today: str, knowledg
             f"ODPOWIEDZI WYDZIAŁÓW (jedyne źródło faktów):\n{resp_txt}\n\n"
             f"WZORY STYLU Z ARCHIWUM (tylko styl i układ, NIE fakty):\n{sim_txt}\n\n"
             f"BAZA WIEDZY URZĘDU (przepisy, zarządzenia, instrukcje):\n{knowledge or '(brak)'}")
-    return chat_text(LETTER_SYS.replace("{today}", today), user)
+    return chat_text(LETTER_SYS.replace("{today}", today), user, purpose="projekt pisma")
 
 
 PII_CATEGORIES = [
@@ -163,5 +206,5 @@ def detect_pii_llm(text: str) -> list:
            "nazw instytucji ani adresów urzędu. Imię i nazwisko przedsiębiorcy jednoosobowego w nazwie firmy oznacz jako OSOBA z uwagą w reason. "
            "Dla danych opisowych (zdrowie, rodzina, majątek, karalność) zaznacz najkrótszy fragment, który ujawnia tę informację. "
            "Zwróć JSON {\"items\": [{\"text\": \"fragment skopiowany DOSŁOWNIE z tekstu\", \"category\": \"KOD\", \"reason\": \"krótko\"}]}.")
-    out = chat_json(sys, text[:12000])
+    out = chat_json(sys, text[:12000], purpose="anonimizacja")
     return out.get("items", [])

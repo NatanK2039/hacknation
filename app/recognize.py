@@ -9,11 +9,8 @@ import re
 from . import ai
 
 OCR_LANG = os.getenv("OCR_LANG", "pol")
-def _vision_model():
-    return os.getenv("VISION_MODEL", "gpt-4.1")
 OCR_MIN_CONF = float(os.getenv("OCR_MIN_CONF", "78"))
 # 1 = każdy skan (strona bez warstwy tekstowej) przechodzi przez AI-vision (lepsza treść + odczyt pieczątek); 0 = tylko gdy OCR ma niską pewność
-VISION_FOR_SCANS = os.getenv("VISION_FOR_SCANS", "1") == "1"
 
 SIG_RE = re.compile(r"BKS\.?\s?IV\.?\s?1431\.\s?(\d{1,4})\.\s?(\d{4})", re.I)
 DATE_RE = r"(\d{1,2})[.\-/ ]\s?(\d{1,2})[.\-/ ]\s?(\d{4})"
@@ -24,11 +21,21 @@ TYPES = {"wniosek": "Wniosek", "odpowiedz": "Odpowiedź", "kwerenda": "Kwerenda 
 
 # ---------------- OCR ----------------
 
+def _ocr_timeout() -> int:
+    from . import settings
+    return settings.get_int("ocr_timeout", 25)
+
+
+def _vision_for_scans() -> bool:
+    from . import settings
+    return str(settings.get("vision_for_scans", "1")) == "1"
+
+
 def _tesseract(img) -> dict:
     import pytesseract
-    d = pytesseract.image_to_data(img, lang=OCR_LANG, output_type=pytesseract.Output.DICT, config="--psm 3")
+    d = pytesseract.image_to_data(img, lang=OCR_LANG, output_type=pytesseract.Output.DICT, config="--psm 3", timeout=_ocr_timeout())
     words = [(w, float(c)) for w, c in zip(d["text"], d["conf"]) if w.strip() and float(c) >= 0]
-    text = pytesseract.image_to_string(img, lang=OCR_LANG, config="--psm 3")
+    text = pytesseract.image_to_string(img, lang=OCR_LANG, config="--psm 3", timeout=_ocr_timeout())
     if not words:
         return {"text": text.strip(), "conf": 0.0, "words": 0, "real_words": 0}
     conf = sum(c for _, c in words) / len(words)
@@ -63,11 +70,14 @@ Zwróć WYŁĄCZNIE JSON:
 
 
 def _vision(img) -> dict:
+    import time
+    t0 = time.time()
     r = ai.client().chat.completions.create(
-        model=_vision_model(), temperature=0, response_format={"type": "json_object"},
+        model=ai.vision_model(), temperature=0, response_format={"type": "json_object"},
         messages=[{"role": "user", "content": [
             {"type": "text", "text": VISION_PROMPT},
             {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + _img_b64(img), "detail": "high"}}]}])
+    ai.track(r, "AI-vision (skan)", ai.vision_model(), t0)
     try:
         return json.loads(r.choices[0].message.content or "{}")
     except Exception:
@@ -92,7 +102,7 @@ def _process_image(img, n: int, force_vision: bool = False) -> dict:
     page.update({"text": o["text"], "conf": o["conf"], "ocr_words": o["words"]})
     low = _page_needs_vision(o)
     page["ocr_low_conf"] = low
-    if (force_vision or low or VISION_FOR_SCANS) and ai.enabled():
+    if (force_vision or low or _vision_for_scans()) and ai.enabled():
         try:
             v = _vision(img)
             page.update({"method": "ai-vision", "text": (v.get("text") or "").strip(), "handwritten": bool(v.get("handwritten")),
