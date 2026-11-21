@@ -40,7 +40,22 @@ def depts() -> list:
 STATUSES = {"nowy": "a) Brak działań", "w_wydziale": "b) Zapytania wysłane do wydziałów", "kwerenda": "c) Kwerenda / przedłużenie",
             "przygotowana": "d) Odpowiedź przygotowana", "wyslana": "e) Odpowiedź wysłana"}
 
-app = FastAPI(title="Asystent UDIP – UM Bydgoszcz")
+app = FastAPI(title="Asystent UDIP – UM Bydgoszcz", docs_url=None, redoc_url=None, openapi_url=None)
+
+MAX_UPLOAD = 25 * 1024 * 1024
+ALLOWED_EXT = (".pdf", ".docx", ".txt", ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp", ".heic")
+
+
+async def read_upload(f) -> bytes:
+    """Wczytuje wgrany plik z limitem rozmiaru i listą dozwolonych typów."""
+    name = (f.filename or "").lower()
+    data = await f.read(MAX_UPLOAD + 1)
+    if len(data) > MAX_UPLOAD:
+        raise HTTPException(413, "Plik jest za duży (limit 25 MB)")
+    is_img = data[:3] == b"\xff\xd8\xff" or data[:8] == b"\x89PNG\r\n\x1a\n"
+    if not (name.endswith(ALLOWED_EXT) or (is_img and "." not in name)):
+        raise HTTPException(415, "Niedozwolony typ pliku. Dozwolone: PDF, DOCX, TXT oraz obrazy (JPG, PNG, TIFF, WEBP, HEIC)")
+    return data
 app.include_router(admin.router)
 app.include_router(auth.router)
 app.include_router(auth.admin_router)
@@ -269,7 +284,7 @@ async def upload_request(file: UploadFile = File(...)):
     import time
     from concurrent.futures import ThreadPoolExecutor
     t0 = time.time()
-    data = await file.read()
+    data = await read_upload(file)
     fname = file.filename or "zdjecie.jpg"
     try:
         r = rec.recognize(fname, data)
@@ -389,7 +404,7 @@ async def add_response(rid: int, department: str = Form(""), text: str = Form(""
         department = u["dept_code"]  # wydział może dodać odpowiedź tylko w swoim imieniu
     fname = None
     if file is not None and file.filename:
-        data = await file.read()
+        data = await read_upload(file)
         text = (text + "\n" if text else "") + extract_text(file.filename, data)
         fname = file.filename
     if not text.strip():
@@ -500,7 +515,7 @@ def export_txt(rid: int):
 @app.post("/api/anonymize")
 async def anon_any(file: UploadFile = File(None), text: str = Form("")):
     if file is not None and file.filename:
-        text = extract_text(file.filename, await file.read())
+        text = extract_text(file.filename, await read_upload(file))
     return {"text": text, "spans": anonymize.detect(text)}
 
 
@@ -536,9 +551,9 @@ async def archive_add(subject: str = Form(""), received_date: str = Form(""), de
                       request_text: str = Form(""), answer_text: str = Form(""),
                       request_file: UploadFile = File(None), answer_file: UploadFile = File(None)):
     if request_file is not None and request_file.filename:
-        request_text = extract_text(request_file.filename, await request_file.read())
+        request_text = extract_text(request_file.filename, await read_upload(request_file))
     if answer_file is not None and answer_file.filename:
-        answer_text = extract_text(answer_file.filename, await answer_file.read())
+        answer_text = extract_text(answer_file.filename, await read_upload(answer_file))
     if not (request_text or answer_text):
         raise HTTPException(400, "Podaj treść wniosku lub odpowiedzi")
     if not subject and ai.enabled():
@@ -561,7 +576,7 @@ def archive_del(aid: int):
 
 @app.post("/api/knowledge")
 async def knowledge_add(file: UploadFile = File(...), kind: str = Form("ustawa")):
-    text = extract_text(file.filename, await file.read())
+    text = extract_text(file.filename, await read_upload(file))
     with db.conn() as c:
         c.execute("INSERT INTO knowledge(title,kind,text) VALUES(?,?,?)", (file.filename, kind, text))
     return {"ok": True, "chars": len(text)}
@@ -691,7 +706,7 @@ async def recognize_docs(files: list[UploadFile] = File(...), force_vision: bool
     out = []
     os.makedirs(PREV_DIR, exist_ok=True)
     for f in files:
-        data = await f.read()
+        data = await read_upload(f)
         try:
             r = rec.recognize(f.filename, data, force_vision=force_vision)
         except Exception as e:
@@ -737,6 +752,12 @@ def document_get(did: int):
 
 @app.get("/api/documents/{did}/page/{n}")
 def document_page(did: int, n: int):
+    u = auth.current_user.get()
+    if u and u["role"] == "wydzial":  # komórka widzi tylko pisma ze swoich spraw
+        with db.conn() as c:
+            rows = c.execute("SELECT id FROM requests WHERE doc_id=? UNION SELECT request_id FROM documents WHERE id=? AND request_id IS NOT NULL", (did, did)).fetchall()
+        if not any(auth.visible_to_dept(get_req(r[0]), u["dept_code"]) for r in rows):
+            raise HTTPException(403, "To pismo nie należy do sprawy Twojej komórki")
     fp = os.path.join(PREV_DIR, f"{did}-{n}.jpg")
     if not os.path.exists(fp):
         raise HTTPException(404)

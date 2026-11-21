@@ -7,7 +7,7 @@ def _ocr_pdf(data: bytes) -> str:
     try:
         from pdf2image import convert_from_bytes
         import pytesseract
-        pages = convert_from_bytes(data, dpi=200)
+        pages = convert_from_bytes(data, dpi=200, last_page=40)
         return "\n\n".join(pytesseract.image_to_string(p, lang=os.getenv("OCR_LANG", "pol")) for p in pages)
     except Exception as e:  # brak tesseracta / popplera
         return f"[OCR niedostępny: {e}]"
@@ -18,6 +18,8 @@ def extract_text(filename: str, data: bytes) -> str:
     if name.endswith(".pdf"):
         import pdfplumber
         with pdfplumber.open(io.BytesIO(data)) as pdf:
+            if len(pdf.pages) > 40:
+                raise ValueError(f"dokument ma {len(pdf.pages)} stron (limit 40)")
             text = "\n\n".join((p.extract_text() or "") for p in pdf.pages)
         if len(text.strip()) < 40:  # skan bez warstwy tekstowej
             text = _ocr_pdf(data)

@@ -406,11 +406,17 @@ async def restore(file: UploadFile = File(None), name: str = ""):
     if not REQUIRED_TABLES <= tables:
         raise HTTPException(400, f"Plik nie jest kopią Asystenta UDIP (brak tabel: {', '.join(REQUIRED_TABLES - tables)})")
     safety = make_backup("przed_przywroceniem")
+    with db.conn() as c:
+        users_before = [tuple(r) for r in c.execute("SELECT * FROM users")]
     s = sqlite3.connect(src); d = sqlite3.connect(db.DB_PATH)
     with d:
         s.backup(d)
     s.close(); d.close()
     db.init()  # dołóż ewentualnie brakujące tabele/kolumny z nowszej wersji
+    with db.conn() as c:  # kopia sprzed wprowadzenia kont – zachowaj obecne konta, żeby nie odciąć dostępu
+        if users_before and not c.execute("SELECT COUNT(*) FROM users WHERE role='admin' AND active=1").fetchone()[0]:
+            c.execute("DELETE FROM users")
+            c.executemany(f"INSERT INTO users VALUES({','.join('?' * len(users_before[0]))})", users_before)
     settings._cache["t"] = 0
     add_detail(f"źródło: {file.filename if file is not None and file.filename else name}; kopia bezpieczeństwa: {os.path.basename(safety)}")
     return {"ok": True, "safety_backup": os.path.basename(safety)}
