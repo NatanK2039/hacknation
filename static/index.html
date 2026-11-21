@@ -67,7 +67,7 @@
   ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#cfd6e2;border-radius:10px;border:2px solid #f4f6fa}
 </style>
 </head>
-<body class="bg-slate-50 text-slate-800" x-data="app()" x-init="init()">
+<body class="bg-slate-50 text-slate-800" x-data="app()">
 
 <!-- SIDEBAR -->
 <aside class="hidden lg:flex fixed inset-y-0 left-0 w-64 bg-gradient-to-b from-[#0b3d91] to-[#062a66] text-white flex-col z-30">
@@ -82,26 +82,29 @@
     <div class="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wider text-blue-300/80">Praca</div>
     <button class="nav-item" :class="tab==='cal'&&'active'" @click="tab='cal'">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
-      <span class="flex-1">Kalendarz wniosków</span><span x-show="kpi.urgent+kpi.tomorrow" class="text-[10px] font-bold bg-red-500 text-white rounded-full px-1.5" x-text="kpi.urgent+kpi.tomorrow"></span></button>
-    <button class="nav-item" :class="tab==='rec'&&'active'" @click="tab='rec'">
+      <span class="flex-1" x-text="isDept?'Sprawy mojej komórki':'Kalendarz wniosków'"></span><span x-show="kpi.urgent+kpi.tomorrow" class="text-[10px] font-bold bg-red-500 text-white rounded-full px-1.5" x-text="kpi.urgent+kpi.tomorrow"></span></button>
+    <button x-show="canWork||readOnly" class="nav-item" :class="tab==='rec'&&'active'" @click="tab='rec'">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7V5a1 1 0 011-1h2M17 4h2a1 1 0 011 1v2M20 17v2a1 1 0 01-1 1h-2M7 20H5a1 1 0 01-1-1v-2"/><path d="M8 9h8M8 12h8M8 15h5"/></svg>
       <span>Rozpoznawanie pism</span></button>
-    <button class="nav-item" :class="tab==='anon'&&'active'" @click="tab='anon'">
+    <button x-show="canWork" class="nav-item" :class="tab==='anon'&&'active'" @click="tab='anon'">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 3v6c0 4.5-3.4 8.4-8 9-4.6-.6-8-4.5-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg>
       <span>Anonimizacja</span></button>
-    <div class="px-3 pt-4 pb-1 text-[10px] uppercase tracking-wider text-blue-300/80">Wiedza</div>
-    <button class="nav-item" :class="tab==='arch'&&'active'" @click="tab='arch'">
+    <div x-show="canWork||readOnly" class="px-3 pt-4 pb-1 text-[10px] uppercase tracking-wider text-blue-300/80">Wiedza</div>
+    <button x-show="canWork||readOnly" class="nav-item" :class="tab==='arch'&&'active'" @click="tab='arch'">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v4H4zM5 8v11a1 1 0 001 1h12a1 1 0 001-1V8"/><path d="M10 12h4"/></svg>
       <span>Archiwum i baza wiedzy</span></button>
-    <div class="px-3 pt-4 pb-1 text-[10px] uppercase tracking-wider text-blue-300/80">System</div>
-    <button class="nav-item" :class="tab==='admin'&&'active'" @click="openAdmin()">
+    <div x-show="isAdmin" class="px-3 pt-4 pb-1 text-[10px] uppercase tracking-wider text-blue-300/80">System</div>
+    <button x-show="isAdmin" class="nav-item" :class="tab==='admin'&&'active'" @click="openAdmin()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>
-      <span class="flex-1">Administracja</span><svg x-show="!adminToken" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;opacity:.7"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></button>
+      <span class="flex-1">Administracja</span></button>
   </nav>
   <div class="p-4 m-3 rounded-xl bg-white/10 text-xs space-y-2">
-    <label class="flex items-center gap-2 pb-2 border-b border-white/10"><span class="text-blue-200">Pracuje:</span>
-      <input x-model="me" @change="saveMe()" maxlength="20" placeholder="inicjały" title="Twoje inicjały – zapisywane w dzienniku zdarzeń"
-        class="flex-1 min-w-0 bg-white/10 rounded px-2 py-1 text-white placeholder:text-blue-300 outline-none focus:bg-white/20" style="border:0;box-shadow:none"></label>
+    <div class="pb-2 border-b border-white/10" x-show="user">
+      <div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-semibold text-[11px]" x-text="user&&(user.initials||user.username.slice(0,2).toUpperCase())"></div>
+        <div class="min-w-0"><div class="font-semibold text-white truncate" x-text="user&&(user.full_name||user.username)"></div>
+          <div class="text-blue-200 truncate" x-text="user&&(user.role_label+(user.dept_code?' · '+user.dept_code:''))"></div></div></div>
+      <div class="flex gap-3 mt-2"><button class="text-blue-200 hover:text-white underline" @click="pwOpen=true">Zmień hasło</button><button class="text-blue-200 hover:text-white underline" @click="logout()">Wyloguj</button></div>
+    </div>
     <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full" :class="cfg.ai?'bg-emerald-400':'bg-red-400'"></span>
       <span x-text="cfg.ai ? 'Asystent AI aktywny' : 'AI wyłączone'"></span></div>
     <div class="text-blue-200" x-show="cfg.ai" x-text="cfg.provider+' · '+cfg.model"></div>
@@ -116,15 +119,16 @@
   <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-5 h-5"><path d="M4 20V9l8-5 8 5v11"/><path d="M9 20v-6h6v6"/><path d="M2 20h20"/></svg></div>
   <div class="flex-1 min-w-0"><div class="font-semibold leading-tight text-[15px]">Asystent UDIP</div><div class="text-[11px] text-blue-200 leading-tight truncate">Urząd Miasta Bydgoszczy</div></div>
   <span class="flex items-center gap-1.5 text-[11px] bg-white/10 rounded-full px-2 py-1"><span class="w-2 h-2 rounded-full" :class="cfg.ai?'bg-emerald-400':'bg-red-400'"></span><span x-text="cfg.ai?'AI':'AI off'"></span></span>
-  <button @click="openAdmin()" aria-label="Administracja" class="w-9 h-9 rounded-lg flex items-center justify-center" :class="tab==='admin'?'bg-white text-[#0b3d91]':'bg-white/10'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-5 h-5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></button>
+  <button x-show="user" @click="mobileMenu=!mobileMenu" aria-label="Konto" class="w-9 h-9 rounded-lg flex items-center justify-center bg-white/10 text-[11px] font-semibold" x-text="user&&(user.initials||user.username.slice(0,2).toUpperCase())"></button>
+  <button x-show="isAdmin" @click="openAdmin()" aria-label="Administracja" class="w-9 h-9 rounded-lg flex items-center justify-center" :class="tab==='admin'?'bg-white text-[#0b3d91]':'bg-white/10'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-5 h-5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></button>
 </div>
 <!-- MOBILE BOTTOM NAV -->
-<nav class="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 grid grid-cols-4" style="padding-bottom:env(safe-area-inset-bottom)">
-  <button class="mnav" :class="tab==='cal'&&'active'" @click="tab='cal'"><span class="relative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+<nav x-show="user" class="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 flex" style="padding-bottom:env(safe-area-inset-bottom)">
+  <button class="mnav flex-1" :class="tab==='cal'&&'active'" @click="tab='cal'"><span class="relative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
     <span x-show="kpi.urgent+kpi.tomorrow" class="absolute -top-1 -right-2 text-[9px] font-bold bg-red-500 text-white rounded-full px-1" x-text="kpi.urgent+kpi.tomorrow"></span></span><span>Wnioski</span></button>
-  <button class="mnav" :class="tab==='rec'&&'active'" @click="tab='rec'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7V5a1 1 0 011-1h2M17 4h2a1 1 0 011 1v2M20 17v2a1 1 0 01-1 1h-2M7 20H5a1 1 0 01-1-1v-2"/><path d="M8 9h8M8 12h8M8 15h5"/></svg><span>Pisma</span></button>
-  <button class="mnav" :class="tab==='anon'&&'active'" @click="tab='anon'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 3v6c0 4.5-3.4 8.4-8 9-4.6-.6-8-4.5-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg><span>Anonimizacja</span></button>
-  <button class="mnav" :class="tab==='arch'&&'active'" @click="tab='arch'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v4H4zM5 8v11a1 1 0 001 1h12a1 1 0 001-1V8"/><path d="M10 12h4"/></svg><span>Archiwum</span></button>
+  <button x-show="canWork||readOnly" class="mnav flex-1" :class="tab==='rec'&&'active'" @click="tab='rec'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7V5a1 1 0 011-1h2M17 4h2a1 1 0 011 1v2M20 17v2a1 1 0 01-1 1h-2M7 20H5a1 1 0 01-1-1v-2"/><path d="M8 9h8M8 12h8M8 15h5"/></svg><span>Pisma</span></button>
+  <button x-show="canWork" class="mnav flex-1" :class="tab==='anon'&&'active'" @click="tab='anon'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 3v6c0 4.5-3.4 8.4-8 9-4.6-.6-8-4.5-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg><span>Anonimizacja</span></button>
+  <button x-show="canWork||readOnly" class="mnav flex-1" :class="tab==='arch'&&'active'" @click="tab='arch'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v4H4zM5 8v11a1 1 0 001 1h12a1 1 0 001-1V8"/><path d="M10 12h4"/></svg><span>Archiwum</span></button>
 </nav>
 <main class="lg:ml-64 px-4 sm:px-6 lg:px-8 py-5 lg:py-7 pb-28 lg:pb-7 max-w-[1600px]">
 
@@ -132,7 +136,7 @@
 <section x-show="tab==='cal'" x-cloak>
   <div class="mb-5">
     <div class="text-sm text-slate-500" x-text="greeting()"></div>
-    <h1>Kalendarz wniosków</h1>
+    <h1 x-text="isDept?('Sprawy komórki '+user.dept_code):'Kalendarz wniosków'">Kalendarz wniosków</h1>
   </div>
   <div class="flex flex-wrap items-center gap-3 mb-4">
     <select x-model="year" @change="load()" x-effect="years; $nextTick(()=>$el.value=year)" class="border rounded px-2 py-1.5 text-sm bg-white">
@@ -183,7 +187,7 @@
   </div>
 
   <!-- UPLOAD -->
-  <div class="drop rounded-lg p-4 mb-4 bg-white flex items-center gap-4" :class="dragOver&&'over'"
+  <div x-show="canWork" class="drop rounded-lg p-4 mb-4 bg-white flex items-center gap-4" :class="dragOver&&'over'"
        @dragover.prevent="dragOver=true" @dragleave="dragOver=false" @drop.prevent="dragOver=false; uploadRequest($event.dataTransfer.files[0])">
     <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-6 h-6"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg></div>
     <div class="flex-1">
@@ -280,13 +284,13 @@
               <span class="font-medium" x-text="a.subject"></span><span class="ml-auto text-xs bg-slate-100 px-2 rounded" x-text="a.department"></span></summary>
             <div class="mt-2 text-sm"><div class="text-xs font-semibold text-slate-500">WNIOSEK</div><p x-text="a.request_text"></p>
               <div class="text-xs font-semibold text-slate-500 mt-2">ODPOWIEDŹ</div><p class="whitespace-pre-wrap" x-text="a.answer_text"></p>
-              <button class="text-xs text-red-600 mt-2" @click="delArchive(a.id)">usuń z archiwum</button></div>
+              <button x-show="canWork" class="text-xs text-red-600 mt-2" @click="delArchive(a.id)">usuń z archiwum</button></div>
           </details>
         </template>
       </div>
     </div>
     <div class="space-y-4">
-      <div class="bg-white border rounded p-4 panel-card">
+      <div x-show="canWork" class="bg-white border rounded p-4 panel-card">
         <h2 class="font-semibold mb-2">Dodaj archiwalną sprawę</h2>
         <p class="text-xs text-slate-500 mb-2">Asystent „uczy się” na wgranych sprawach – nowe wnioski są od razu porównywane z archiwum.</p>
         <form @submit.prevent="addArchive($event)" class="space-y-2 text-sm">
@@ -302,7 +306,7 @@
       </div>
       <div class="bg-white border rounded p-4 panel-card">
         <h2 class="font-semibold mb-2">Akty prawne i zarządzenia</h2>
-        <form @submit.prevent="addKnowledge($event)" class="space-y-2 text-sm">
+        <form x-show="canWork" @submit.prevent="addKnowledge($event)" class="space-y-2 text-sm">
           <select name="kind" class="border rounded px-2 py-1 w-full"><option>ustawa</option><option>aktualizacja ustawy</option><option>zarządzenie</option><option>wzór pisma</option></select>
           <input type="file" name="file" required class="text-xs">
           <button class="bg-slate-800 text-white px-3 py-1.5 rounded w-full">Wgraj dokument</button>
@@ -323,11 +327,11 @@
 <!-- ================= ROZPOZNAWANIE ================= -->
 <section x-show="tab==='rec'" x-cloak x-init="$watch('tab', v => v==='rec' && loadDocs())">
   <div class="flex flex-wrap items-center gap-3 mb-1"><h1>Rozpoznawanie pism</h1>
-    <button class="sm:ml-auto border bg-white px-3 py-1.5 rounded text-sm" @click="importArchive()">⇄ Importuj do archiwum<span class="hidden sm:inline"> (paruj wniosek + odpowiedź po sygnaturze)</span></button></div>
+    <button x-show="canWork" class="sm:ml-auto border bg-white px-3 py-1.5 rounded text-sm" @click="importArchive()">⇄ Importuj do archiwum<span class="hidden sm:inline"> (paruj wniosek + odpowiedź po sygnaturze)</span></button></div>
   <p class="text-sm text-slate-500 mb-3">Wnioski, odpowiedzi, kwerendy i wezwania – Word, PDF, skany i <b>pisma odręczne</b>. Każda strona jest rozpoznawana automatycznie dobraną metodą:
     <span class="px-1.5 rounded bg-slate-200 text-xs">warstwa tekstowa / Word</span> → <span class="px-1.5 rounded bg-blue-100 text-blue-800 text-xs">OCR Tesseract</span> →
     <span class="px-1.5 rounded bg-purple-100 text-purple-800 text-xs">AI-vision</span> (skany, pismo odręczne, pieczątki wpływu).</p>
-  <div class="drop rounded-lg p-4 mb-3 bg-white flex items-center gap-4" :class="dragOver&&'over'"
+  <div x-show="canWork" class="drop rounded-lg p-4 mb-3 bg-white flex items-center gap-4" :class="dragOver&&'over'"
        @dragover.prevent="dragOver=true" @dragleave="dragOver=false" @drop.prevent="dragOver=false; recognizeFiles($event.dataTransfer.files)">
     <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-6 h-6"><path d="M4 7V5a1 1 0 011-1h2M17 4h2a1 1 0 011 1v2M20 17v2a1 1 0 01-1 1h-2M7 20H5a1 1 0 01-1-1v-2"/><path d="M8 9h8M8 12h8M8 15h5"/></svg></div>
     <div class="flex-1"><div class="font-semibold"><span class="hidden md:inline">Przeciągnij pliki (wiele naraz) – PDF, DOCX, JPG/PNG</span><span class="md:hidden">Dodaj pisma do rozpoznania</span></div>
@@ -413,23 +417,17 @@
   <div class="mb-5"><div class="text-sm text-slate-500">System</div><h1>Administracja</h1></div>
 
   <!-- logowanie -->
-  <div x-show="!adminToken" class="max-w-md bg-white border rounded-lg p-6">
+  <div x-show="!isAdmin" class="max-w-md bg-white border rounded-lg p-6">
     <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center mb-3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-6 h-6"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></div>
     <h2 class="font-semibold text-lg text-slate-900">Panel administratora</h2>
-    <p class="text-sm text-slate-500 mb-4">Ustawienia systemu, dziennik zdarzeń, statystyki i kopie zapasowe. Wymaga osobnego hasła administratora.</p>
-    <template x-if="cfg.admin_enabled===false"><div class="text-sm p-3 rounded bg-amber-50 border border-amber-200 text-amber-800">Panel jest wyłączony. Ustaw <code>ADMIN_PASSWORD</code> w pliku <code>.env</code> na serwerze i zrestartuj aplikację.</div></template>
-    <form x-show="cfg.admin_enabled!==false" @submit.prevent="adminLogin()" class="space-y-3">
-      <input type="password" x-model="adminPw" placeholder="Hasło administratora" autocomplete="current-password" class="border rounded px-3 py-2 w-full">
-      <p x-show="adminErr" class="text-sm text-red-600" x-text="adminErr"></p>
-      <button class="bg-[#00305f] text-white px-4 py-2 rounded w-full">Zaloguj</button>
-    </form>
+    <p class="text-sm text-slate-500">Panel jest dostępny tylko dla kont z rolą Administrator.</p>
   </div>
 
-  <div x-show="adminToken">
+  <div x-show="isAdmin">
     <div class="flex flex-wrap items-center gap-2 mb-4">
-      <template x-for="t in [['settings','Ustawienia'],['dicts','Słowniki'],['audit','Dziennik zdarzeń'],['stats','Statystyki'],['system','System i kopie']]">
+      <template x-for="t in [['users','Użytkownicy'],['settings','Ustawienia'],['dicts','Słowniki'],['audit','Dziennik zdarzeń'],['stats','Statystyki'],['system','System i kopie']]">
         <button class="px-3 py-1.5 rounded-full text-sm border" :class="adminTab===t[0]?'bg-[#0b3d91] text-white border-[#0b3d91]':'bg-white'" @click="adminTab=t[0]; adminLoad()" x-text="t[1]"></button></template>
-      <button class="ml-auto text-sm text-slate-500 hover:text-red-600" @click="adminLogout()">Wyloguj administratora</button>
+
     </div>
 
     <!-- USTAWIENIA -->
@@ -471,6 +469,60 @@
       </div>
     </div>
 
+
+
+    <!-- UŻYTKOWNICY -->
+    <div x-show="adminTab==='users'" class="grid xl:grid-cols-3 gap-5">
+      <div class="xl:col-span-2 bg-white border rounded-lg">
+        <div class="p-4 flex items-center gap-2 border-b"><h2 class="font-semibold text-slate-900">Konta użytkowników</h2>
+          <span class="text-xs text-slate-500" x-text="adm.users.length+' kont'"></span></div>
+        <div class="overflow-x-auto"><table class="w-full text-sm">
+          <thead><tr><th class="px-3 py-2.5 text-left">Login</th><th class="px-3 py-2.5 text-left">Imię i nazwisko</th><th class="px-3 py-2.5 text-left">Rola</th><th class="px-3 py-2.5 text-left">Komórka</th><th class="px-3 py-2.5 text-left">Ostatnie logowanie</th><th class="px-3 py-2.5"></th></tr></thead>
+          <tbody><template x-for="u in adm.users" :key="u.id"><tr class="border-t" :class="!u.active&&'opacity-50'">
+            <td class="px-3 py-2"><span class="font-mono text-xs" x-text="u.username"></span>
+              <span x-show="u.id===user.id" class="pill bg-blue-100 text-blue-800 ml-1">Ty</span>
+              <span x-show="!u.active" class="pill bg-red-100 text-red-700 ml-1">zablokowane</span>
+              <span x-show="u.must_change && u.active" class="pill bg-amber-100 text-amber-800 ml-1">hasło tymczasowe</span></td>
+            <td class="px-3 py-2"><input x-model="u.full_name" @change="updUser(u,{full_name:u.full_name})" class="border rounded px-2 py-1 text-xs w-full min-w-[140px]"></td>
+            <td class="px-3 py-2"><select x-model="u.role" @change="updUser(u,{role:u.role,dept_code:u.dept_code})" class="border rounded px-2 py-1 text-xs">
+              <template x-for="(lbl,k) in adm.roles"><option :value="k" x-text="lbl" :selected="k===u.role"></option></template></select></td>
+            <td class="px-3 py-2"><select x-show="u.role==='wydzial'" x-model="u.dept_code" @change="updUser(u,{role:u.role,dept_code:u.dept_code})" class="border rounded px-2 py-1 text-xs max-w-[110px]">
+              <option value="">—</option><template x-for="d in depts"><option :value="d.code" x-text="d.code" :selected="d.code===u.dept_code"></option></template></select>
+              <span x-show="u.role!=='wydzial'" class="text-xs text-slate-400">—</span></td>
+            <td class="px-3 py-2 text-xs text-slate-500 whitespace-nowrap" x-text="u.last_login?u.last_login.replace('T',' '):'nigdy'"></td>
+            <td class="px-3 py-2 text-right whitespace-nowrap text-xs">
+              <button class="text-blue-700 mr-2" @click="resetUserPw(u)">reset hasła</button>
+              <button x-show="u.id!==user.id" class="mr-2" :class="u.active?'text-amber-700':'text-emerald-700'" @click="updUser(u,{active:!u.active})" x-text="u.active?'zablokuj':'odblokuj'"></button>
+              <button x-show="u.id!==user.id" class="text-red-600" @click="delUser(u)">usuń</button></td>
+          </tr></template></tbody></table></div>
+        <div x-show="adm.tempPw" class="m-4 p-3 rounded border border-emerald-200 bg-emerald-50 text-sm">
+          <div class="font-semibold text-emerald-800" x-text="'Hasło tymczasowe dla '+adm.tempFor+':'"></div>
+          <div class="flex items-center gap-2 mt-1"><code class="bg-white border rounded px-2 py-1 text-base" x-text="adm.tempPw"></code>
+            <button class="text-xs text-blue-700" @click="navigator.clipboard.writeText(adm.tempPw); say('Skopiowano hasło')">kopiuj</button>
+            <button class="text-xs text-slate-500 ml-auto" @click="adm.tempPw=''">ukryj</button></div>
+          <p class="text-xs text-emerald-700 mt-1">Przekaż je użytkownikowi bezpiecznym kanałem. Przy pierwszym logowaniu system wymusi zmianę hasła. Hasło nie będzie już nigdzie wyświetlane.</p></div>
+      </div>
+      <div class="bg-white border rounded-lg p-5">
+        <h3 class="font-semibold mb-3">Nowe konto</h3>
+        <form @submit.prevent="addUser()" class="space-y-2 text-sm">
+          <input x-model="adm.nu.username" placeholder="login, np. jan.kowalski" autocapitalize="none" class="border rounded px-3 py-2 w-full">
+          <input x-model="adm.nu.full_name" placeholder="imię i nazwisko" class="border rounded px-3 py-2 w-full">
+          <div class="flex gap-2"><input x-model="adm.nu.initials" maxlength="6" placeholder="inicjały" class="border rounded px-3 py-2 w-24">
+            <select x-model="adm.nu.role" class="border rounded px-2 py-2 flex-1"><template x-for="(lbl,k) in adm.roles"><option :value="k" x-text="lbl"></option></template></select></div>
+          <select x-show="adm.nu.role==='wydzial'" x-model="adm.nu.dept_code" class="border rounded px-2 py-2 w-full"><option value="">— komórka —</option><template x-for="d in depts"><option :value="d.code" x-text="d.code+' – '+d.name"></option></template></select>
+          <input x-model="adm.nu.password" type="password" autocomplete="new-password" placeholder="hasło (puste = wygeneruj tymczasowe)" class="border rounded px-3 py-2 w-full">
+          <p x-show="adm.userErr" class="text-sm text-red-600" x-text="adm.userErr"></p>
+          <button class="bg-[#00305f] text-white px-4 py-2 rounded w-full">Utwórz konto</button>
+        </form>
+        <div class="mt-5 text-xs text-slate-600 space-y-1.5">
+          <h4 class="font-semibold text-slate-900 text-sm">Role</h4>
+          <p><b>Administrator</b> – wszystko, w tym panel administracyjny i konta.</p>
+          <p><b>Urzędnik AIP</b> – pełna obsługa wniosków, bez panelu administracyjnego.</p>
+          <p><b>Wydział</b> – widzi tylko sprawy przypisane do swojej komórki i wgrywa do nich odpowiedzi.</p>
+          <p><b>Podgląd</b> – tylko odczyt.</p>
+        </div>
+      </div>
+    </div>
 
     <!-- SŁOWNIKI -->
     <div x-show="adminTab==='dicts'" class="bg-white border rounded-lg">
@@ -603,7 +655,7 @@
         <div class="min-w-0 flex-1"><div class="font-bold leading-snug" x-text="cur.subject"></div><div class="text-xs text-slate-500"><span x-text="cur.number"></span> · termin <b x-text="fmt(cur.deadline)"></b>
           (<span x-text="cur.status==='wyslana'?'wysłano':(cur.days_left<0?'PO TERMINIE '+(-cur.days_left)+' dni':cur.days_left+' dni')"></span>) · projekt z wydziału do <b x-text="fmt(cur.dept_deadline)"></b></div></div>
         <div class="md:ml-auto flex gap-1 text-xs order-3 md:order-none w-full md:w-auto">
-          <template x-for="(lbl,key) in cfg.statuses"><button @click="setStatus(key)" class="px-2 py-1 rounded border"
+          <template x-for="(lbl,key) in cfg.statuses"><button x-show="canWork" @click="setStatus(key)" class="px-2 py-1 rounded border"
             :class="cur.status===key?'bg-[#00305f] text-white border-[#00305f]':'bg-white'" x-text="lbl.split(') ')[0]+')'" :title="lbl"></button></template>
           <button class="ml-auto md:ml-3 text-2xl leading-none px-2" @click="cur=null">×</button>
         </div>
@@ -648,13 +700,13 @@
               <label class="text-xs col-span-2">Skrócony opis<textarea x-model="edit.summary" class="border rounded px-2 py-1 w-full h-16"></textarea></label>
             </div>
             <div class="text-xs text-slate-500 mt-1">Termin liczony automatycznie: 14 dni (art. 13 ust. 1 UDIP), przedłużenie maks. do 2 mies. (art. 13 ust. 2), dzień wolny → następny dzień roboczy.</div>
-            <button class="mt-2 bg-[#00305f] text-white px-3 py-1.5 rounded text-sm" @click="saveEdit()">Zatwierdź dane</button>
+            <button x-show="canWork" class="mt-2 bg-[#00305f] text-white px-3 py-1.5 rounded text-sm" @click="saveEdit()">Zatwierdź dane</button>
             <div x-show="cur.questions && cur.questions.length" class="mt-3"><div class="text-xs font-semibold text-slate-500">PYTANIA Z WNIOSKU</div>
               <ol class="list-decimal ml-5 text-sm"><template x-for="q in cur.questions"><li x-text="q"></li></template></ol></div>
             <details class="mt-2"><summary class="text-xs cursor-pointer text-blue-700">Pełna treść wniosku</summary><div class="text-xs whitespace-pre-wrap mt-1 max-h-72 overflow-y-auto bg-slate-50 p-2 rounded" x-text="cur.content"></div></details>
           </div>
 
-          <div class="bg-white border rounded p-4 panel-card">
+          <div x-show="!isDept" class="bg-white border rounded p-4 panel-card">
             <div class="flex items-center"><h3 class="font-semibold">2. Podobne sprawy z archiwum</h3>
               <button class="ml-auto text-xs text-blue-700" @click="act('similar','Szukam podobnych spraw…')">odśwież</button></div>
             <div class="space-y-2 mt-2">
@@ -667,7 +719,7 @@
             </div>
           </div>
 
-          <div class="bg-white border rounded p-4 panel-card">
+          <div x-show="!isDept" class="bg-white border rounded p-4 panel-card">
             <div class="flex items-center"><h3 class="font-semibold">3. Właściwe wydziały</h3>
               <button class="ml-auto text-xs text-blue-700" @click="act('departments','Analizuję właściwość wydziałów…')">odśwież</button></div>
             <div class="space-y-2 mt-2">
@@ -683,16 +735,17 @@
               <div x-show="(cur.departments||{}).bip_hint" class="text-xs p-2 rounded bg-blue-50 border border-blue-200">🔗 BIP: <span x-text="(cur.departments||{}).bip_hint"></span> <i>(§ 8 ust. 1 – wskazać adres strony BIP)</i></div>
             </div>
             <div class="text-xs text-slate-500 mt-2">Termin dla wydziału: <b x-text="fmt(cur.dept_deadline)"></b> (3 dni robocze przed terminem ustawowym). Projekt odpowiedzi wydział przesyła na bip@um.bydgoszcz.pl po anonimizacji (§ 11 ust. 1 i 8 Zarządzenia 535/2024). Prośbę wysyłasz samodzielnie – asystent niczego nie wysyła.</div>
-            <button class="mt-2 border px-3 py-1 rounded text-xs" @click="setStatus('w_wydziale')">Oznacz: zapytania wysłane do wydziałów</button>
+            <button x-show="canWork" class="mt-2 border px-3 py-1 rounded text-xs" @click="setStatus('w_wydziale')">Oznacz: zapytania wysłane do wydziałów</button>
           </div>
         </div>
 
         <!-- prawa kolumna -->
         <div class="md:col-span-3 space-y-4">
           <div class="bg-white border rounded p-4 panel-card">
-            <h3 class="font-semibold mb-2">4. Odpowiedzi z wydziałów</h3>
-            <form @submit.prevent="addResponse($event)" class="flex flex-wrap gap-2 items-end text-sm">
-              <select name="department" class="border rounded px-2 py-1.5 w-full max-w-full"><template x-for="d in depts"><option :value="d.code" x-text="d.code+' – '+d.name"></option></template></select>
+            <h3 class="font-semibold mb-2" x-text="isDept?'Odpowiedź mojej komórki ('+user.dept_code+')':'4. Odpowiedzi z wydziałów'"></h3>
+            <p x-show="isDept" class="text-xs text-slate-500 mb-2">Wgraj projekt odpowiedzi (po anonimizacji, § 11 ust. 8 Zarządzenia 535/2024). Urzędnik AIP przygotuje z niego pismo do wnioskodawcy.</p>
+            <form x-show="canWork||isDept" @submit.prevent="addResponse($event)" class="flex flex-wrap gap-2 items-end text-sm">
+              <select x-show="!isDept" name="department" class="border rounded px-2 py-1.5 w-full max-w-full"><template x-for="d in depts"><option :value="d.code" x-text="d.code+' – '+d.name"></option></template></select>
               <input type="file" name="file" class="text-xs">
               <button class="bg-slate-800 text-white px-3 py-1 rounded">Wgraj odpowiedź</button>
               <textarea name="text" placeholder="…lub wklej treść odpowiedzi wydziału" class="border rounded px-2 py-1 w-full h-14"></textarea>
@@ -703,9 +756,9 @@
               <div class="text-xs whitespace-pre-wrap mt-1" x-text="r.text"></div></details></template>
           </div>
 
-          <div class="bg-white border rounded p-4 panel-card">
+          <div x-show="!isDept" class="bg-white border rounded p-4 panel-card">
             <div class="flex items-center gap-2 mb-2"><h3 class="font-semibold">5. Projekt odpowiedzi + anonimizacja</h3>
-              <button class="ml-auto bg-[#00305f] text-white px-3 py-1.5 rounded text-sm disabled:opacity-40" :disabled="!cur.responses.length"
+              <button x-show="canWork" class="ml-auto bg-[#00305f] text-white px-3 py-1.5 rounded text-sm disabled:opacity-40" :disabled="!cur.responses.length"
                 @click="act('draft','Przygotowuję projekt pisma na podstawie odpowiedzi wydziałów…')">✨ Generuj projekt</button></div>
             <div x-show="!cur.draft" class="text-sm text-slate-400">Wgraj co najmniej jedną odpowiedź wydziału i kliknij „Generuj projekt”.</div>
             <template x-if="cur.draft">
@@ -750,10 +803,10 @@
                           @click="seg.s && (seg.s.ok=!seg.s.ok)" x-text="seg.t"></span></template></div>
                 </div>
                 <div class="flex flex-wrap gap-2 mt-3">
-                  <button class="bg-emerald-700 text-white px-3 py-1.5 rounded text-sm" @click="applyAnon()">✔ Zatwierdź anonimizację i treść</button>
+                  <button x-show="canWork" class="bg-emerald-700 text-white px-3 py-1.5 rounded text-sm" @click="applyAnon()">✔ Zatwierdź anonimizację i treść</button>
                   <a class="border px-3 py-1.5 rounded text-sm bg-white" :href="'/api/requests/'+cur.id+'/docx?variant='+(cur.final_text?'final':'draft')">⬇ DOCX</a>
                   <a class="border px-3 py-1.5 rounded text-sm bg-white" :href="'/api/requests/'+cur.id+'/txt'">⬇ TXT</a>
-                  <button class="ml-auto border border-emerald-700 text-emerald-800 px-3 py-1.5 rounded text-sm" @click="setStatus('wyslana')">Oznacz: odpowiedź wysłana</button>
+                  <button x-show="canWork" class="ml-auto border border-emerald-700 text-emerald-800 px-3 py-1.5 rounded text-sm" @click="setStatus('wyslana')">Oznacz: odpowiedź wysłana</button>
                 </div>
                 <div x-show="cur.final_text" class="mt-3"><div class="text-xs font-semibold text-emerald-700">WERSJA ZATWIERDZONA (zanonimizowana)</div>
                   <div class="text-sm whitespace-pre-wrap bg-emerald-50 border border-emerald-200 rounded p-3 max-h-64 overflow-y-auto" x-text="cur.final_text"></div></div>
@@ -761,7 +814,7 @@
             </template>
           </div>
 
-          <div class="bg-white border rounded p-4 panel-card">
+          <div x-show="canWork" class="bg-white border rounded p-4 panel-card">
             <div class="flex items-center gap-2 mb-2"><h3 class="font-semibold">6. Pisma procesowe</h3><span class="text-xs text-slate-400">wzory Biura Komunikacji Społecznej UMB</span></div>
             <div class="grid sm:grid-cols-3 gap-2 mb-2">
               <template x-for="k in [['kwerenda','Przedłużenie terminu (kwerenda)'],['doprecyzowanie','Wezwanie do doprecyzowania'],['odmowa','Projekt decyzji odmownej']]">
@@ -800,7 +853,7 @@
           <div class="bg-white border rounded p-4 panel-card">
             <h3 class="font-semibold mb-1">Historia sprawy</h3>
             <ul class="text-xs space-y-0.5"><template x-for="h in (cur.history||[]).slice().reverse()"><li><span class="text-slate-400" x-text="h.at"></span> · <span x-text="h.note||h.status"></span></li></template></ul>
-            <button class="text-xs text-red-600 mt-2" @click="delRequest()">usuń wniosek</button>
+            <button x-show="canWork" class="text-xs text-red-600 mt-2" @click="delRequest()">usuń wniosek</button>
           </div>
         </div>
       </div>
@@ -850,7 +903,7 @@
         <textarea x-model="doc.text" class="w-full h-72 border rounded p-2 text-sm"></textarea>
       </div>
       <div class="bg-white border rounded p-4 text-sm space-y-2 panel-card">
-        <h3 class="font-semibold">Co zrobić z pismem?</h3>
+        <h3 class="font-semibold" x-show="canWork">Co zrobić z pismem?</h3><p x-show="!canWork" class="text-xs text-slate-500">Tryb podglądu – akcje niedostępne.</p>
         <div x-show="doc.matched_request" class="text-xs text-emerald-700">✓ Sprawa o tej sygnaturze jest w kalendarzu: <b x-text="doc.matched_request&&doc.matched_request.subject"></b></div>
         <div x-show="!doc.matched_request && doc.doc_type!=='wniosek'" class="text-xs">Sprawa: <select x-model="selReq" class="border rounded px-2 py-1 text-xs max-w-full"><option value="">— wybierz wniosek z kalendarza —</option>
           <template x-for="r in allReqs"><option :value="r.id" x-text="r.number+' · '+r.subject"></option></template></select></div>
@@ -866,6 +919,48 @@
       </div>
     </div>
   </div></div></template></div></div>
+
+<!-- ================= LOGOWANIE ================= -->
+<div x-show="authChecked && !user" x-cloak class="fixed inset-0 z-[70] bg-gradient-to-br from-[#0b3d91] to-[#062a66] flex items-center justify-center p-4">
+  <form @submit.prevent="login()" class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-7">
+    <div class="flex items-center gap-3 mb-6"><div class="w-11 h-11 rounded-xl bg-[#0b3d91] text-white flex items-center justify-center">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-6 h-6"><path d="M4 20V9l8-5 8 5v11"/><path d="M9 20v-6h6v6"/><path d="M2 20h20"/></svg></div>
+      <div><div class="font-bold text-slate-900 text-lg leading-tight">Asystent UDIP</div><div class="text-xs text-slate-500">Urząd Miasta Bydgoszczy</div></div></div>
+    <label class="text-sm font-medium text-slate-700" for="lg-user">Login</label>
+    <input id="lg-user" x-model="lg.username" autocomplete="username" autocapitalize="none" class="border rounded px-3 py-2 w-full mb-3 mt-1">
+    <label class="text-sm font-medium text-slate-700" for="lg-pw">Hasło</label>
+    <input id="lg-pw" type="password" x-model="lg.password" autocomplete="current-password" class="border rounded px-3 py-2 w-full mt-1">
+    <p x-show="lg.err" class="text-sm text-red-600 mt-2" x-text="lg.err"></p>
+    <button class="bg-[#0b3d91] text-white rounded-lg w-full py-2.5 mt-5 font-semibold disabled:opacity-60" :disabled="lg.busy" x-text="lg.busy?'Logowanie…':'Zaloguj się'"></button>
+    <p class="text-[11px] text-slate-400 mt-4">Dostęp tylko dla upoważnionych pracowników. Logowania są rejestrowane w dzienniku zdarzeń.</p>
+  </form>
+</div>
+
+<!-- ================= ZMIANA HASŁA ================= -->
+<div x-show="user && (pwOpen || user.must_change)" x-cloak class="fixed inset-0 z-[65] bg-black/40 flex items-center justify-center p-4">
+  <form @submit.prevent="changePw()" class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+    <h2 class="font-semibold text-lg text-slate-900" x-text="user&&user.must_change?'Ustaw własne hasło':'Zmiana hasła'"></h2>
+    <p x-show="user&&user.must_change" class="text-sm text-slate-500 mt-1">Logujesz się hasłem tymczasowym. Przed rozpoczęciem pracy ustaw własne hasło.</p>
+    <label class="text-sm block mt-4">Obecne hasło<input type="password" x-model="pw.old" autocomplete="current-password" class="border rounded px-3 py-2 w-full mt-1"></label>
+    <label class="text-sm block mt-3">Nowe hasło<input type="password" x-model="pw.new1" autocomplete="new-password" class="border rounded px-3 py-2 w-full mt-1"></label>
+    <label class="text-sm block mt-3">Powtórz nowe hasło<input type="password" x-model="pw.new2" autocomplete="new-password" class="border rounded px-3 py-2 w-full mt-1"></label>
+    <p class="text-xs text-slate-500 mt-2">Minimum 10 znaków, litery i cyfry.</p>
+    <p x-show="pw.err" class="text-sm text-red-600 mt-2" x-text="pw.err"></p>
+    <div class="flex gap-2 mt-4"><button class="bg-[#0b3d91] text-white rounded-lg px-4 py-2 font-semibold flex-1">Zapisz hasło</button>
+      <button type="button" x-show="!(user&&user.must_change)" class="border rounded-lg px-4 py-2" @click="pwOpen=false">Anuluj</button>
+      <button type="button" x-show="user&&user.must_change" class="border rounded-lg px-4 py-2" @click="logout()">Wyloguj</button></div>
+  </form>
+</div>
+
+<!-- ================= MENU KONTA (telefon) ================= -->
+<div x-show="mobileMenu && user" x-cloak class="lg:hidden fixed inset-0 z-[60]" @click.self="mobileMenu=false">
+  <div class="absolute right-3 top-16 bg-white rounded-xl shadow-2xl border w-64 p-4 text-sm">
+    <div class="font-semibold text-slate-900" x-text="user&&(user.full_name||user.username)"></div>
+    <div class="text-xs text-slate-500" x-text="user&&(user.role_label+(user.dept_code?' · '+user.dept_code:''))"></div>
+    <button class="block w-full text-left mt-3 py-2 border-t" @click="pwOpen=true; mobileMenu=false">Zmień hasło</button>
+    <button class="block w-full text-left py-2 border-t text-red-600" @click="logout()">Wyloguj</button>
+  </div>
+</div>
 <div x-show="kView" x-cloak class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center" @click.self="kView=null"><div class="bg-white rounded-lg max-w-3xl w-full max-h-[85vh] overflow-y-auto p-5" x-show="kView">
   <div class="flex items-center mb-2"><h3 class="font-semibold" x-text="kView&&kView.title"></h3><button class="ml-auto text-xl" @click="kView=null">×</button></div>
   <pre class="text-xs whitespace-pre-wrap font-sans" x-text="kView&&kView.text"></pre></div></div>
@@ -877,11 +972,28 @@
 function app(){return{
   tabs:[{id:'cal',label:'Kalendarz wniosków'},{id:'arch',label:'Archiwum i baza wiedzy'},{id:'rec',label:'Rozpoznawanie dokumentów'},{id:'anon',label:'Anonimizacja dokumentu'}],
   tab:'cal', view:'table', cfg:{statuses:{}}, items:[], years:[], year:'', hideDone:false, depts:[], busy:'', toast:'', dragOver:false,
-  cur:null, edit:{}, mode:'anon', dv:{text:'',spans:[]}, month:new Date(), archive:[], knowledge:[], archQ:'', cats:[], kView:null, ver:null, lf:{kind:'kwerenda',new_date:'',notes:'',dept:'',days:7,ground:'prywatnosc',withDate:false}, lastLetter:null, me:'', adminToken:'', adminPw:'', adminErr:'', adminTab:'settings', adm:{depts:[],deptCustom:false,deptSource:'',deptQ:'',deptErr:'',settings:null,form:{},err:'',test:null,audit:[],actors:[],q:'',actor:'',otype:'',stats:null,system:null,resetTxt:''}, docs:[], doc:null, forceVision:false, allReqs:[], selReq:'', kwDays:30, sa:{text:'',spans:null,result:''},
-  async init(){ try{ this.me=localStorage.getItem('udip_me')||''; this.adminToken=sessionStorage.getItem('udip_admin')||'' }catch(e){}  this.cfg=await (await fetch('/api/config')).json(); this.depts=await (await fetch('/api/departments')).json(); this.cats=await (await fetch('/api/anonymization-categories')).json();
-    this.year=String(new Date().getFullYear()); await this.load(); if(!this.years.map(String).includes(this.year)) {this.year=''; await this.load();} this.loadArchive(); },
-  hdrs(h={}){ const o={...h}; if(this.me) o['X-User']=encodeURIComponent(this.me); if(this.adminToken) o['X-Admin-Token']=this.adminToken; return o },
-  async api(url,opt={}){ opt={...opt, headers:this.hdrs(opt.headers||{})}; const r=await fetch(url,opt); if(r.status===401 && url.startsWith('/api/admin') && !url.endsWith('/login')){ this.adminLogout(true) } if(!r.ok){let m=r.statusText; try{m=(await r.json()).detail}catch(e){} throw new Error(m)} return r.json() },
+  cur:null, edit:{}, mode:'anon', dv:{text:'',spans:[]}, month:new Date(), archive:[], knowledge:[], archQ:'', cats:[], kView:null, ver:null, user:null, authChecked:false, lg:{username:'',password:'',err:'',busy:false}, pw:{old:'',new1:'',new2:'',err:''}, pwOpen:false, mobileMenu:false, lf:{kind:'kwerenda',new_date:'',notes:'',dept:'',days:7,ground:'prywatnosc',withDate:false}, lastLetter:null, me:'', adminToken:'', adminPw:'', adminErr:'', adminTab:'users', adm:{users:[],roles:{},nu:{username:'',full_name:'',initials:'',role:'aip',dept_code:'',password:''},userErr:'',tempPw:'',tempFor:'',depts:[],deptCustom:false,deptSource:'',deptQ:'',deptErr:'',settings:null,form:{},err:'',test:null,audit:[],actors:[],q:'',actor:'',otype:'',stats:null,system:null,resetTxt:''}, docs:[], doc:null, forceVision:false, allReqs:[], selReq:'', kwDays:30, sa:{text:'',spans:null,result:''},
+  get role(){ return (this.user||{}).role },
+  get isAdmin(){ return this.role==='admin' }, get canWork(){ return ['admin','aip'].includes(this.role) },
+  get isDept(){ return this.role==='wydzial' }, get readOnly(){ return this.role==='podglad' },
+  async init(){
+    this.cfg=await (await fetch('/api/config')).json();
+    try{ const r=await fetch('/api/auth/me'); if(r.ok){ this.user=(await r.json()).user } }catch(e){}
+    this.authChecked=true; if(this.user && !this.user.must_change) await this.afterLogin() },
+  async afterLogin(){ this.tab='cal'; this.depts=await this.api('/api/departments'); this.cats=await this.api('/api/anonymization-categories');
+    this.year=String(new Date().getFullYear()); await this.load(); if(!this.years.map(String).includes(this.year)) {this.year=''; await this.load();}
+    if(this.canWork||this.readOnly) this.loadArchive() },
+  async login(){ this.lg.err=''; this.lg.busy=true;
+    try{ const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:this.lg.username,password:this.lg.password})});
+      const d=await r.json(); if(!r.ok) throw new Error(d.detail||'Błąd logowania');
+      this.user=d.user; this.lg.password=''; if(!this.user.must_change) await this.afterLogin() }catch(e){ this.lg.err=e.message } this.lg.busy=false },
+  async logout(){ try{ await fetch('/api/auth/logout',{method:'POST'}) }catch(e){} this.user=null; this.cur=null; this.doc=null; this.items=[]; this.mobileMenu=false; this.pwOpen=false; this.tab='cal' },
+  async changePw(){ this.pw.err=''; if(this.pw.new1!==this.pw.new2) return this.pw.err='Nowe hasła nie są takie same';
+    try{ await this.api('/api/auth/password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({old:this.pw.old,new:this.pw.new1})});
+      const wasForced=this.user.must_change; this.user={...this.user,must_change:0}; this.pw={old:'',new1:'',new2:'',err:''}; this.pwOpen=false; this.say('Hasło zmienione');
+      if(wasForced) await this.afterLogin() }catch(e){ this.pw.err=e.message } },
+  hdrs(h={}){ return {...h} },
+  async api(url,opt={}){ opt={...opt, headers:this.hdrs(opt.headers||{})}; const r=await fetch(url,opt); if(r.status===401 && !url.endsWith('/auth/login')){ this.user=null; this.cur=null; throw new Error('Sesja wygasła – zaloguj się ponownie') } if(!r.ok){let m=r.statusText; try{m=(await r.json()).detail}catch(e){} throw new Error(m)} return r.json() },
   say(m){this.toast=m; setTimeout(()=>this.toast='',3500)},
   async load(){ const d=await this.api('/api/requests'+(this.year?'?year='+this.year:'')); this.items=d.items; this.years=d.years; },
   get filtered(){ return this.items.filter(r=>!(this.hideDone&&r.status==='wyslana')) },
@@ -906,7 +1018,7 @@ function app(){return{
     try{ const fd=new FormData(); fd.append('file',f, f.name||'zdjecie.jpg'); const r=await this.api('/api/requests/upload',{method:'POST',body:fd});
       await this.load(); this.setCur(r); this.say('✅ Wniosek w kalendarzu po '+Math.round((Date.now()-t0)/1000)+' s · termin '+this.fmt(r.deadline)); }catch(e){ this.say('Błąd: '+e.message) }
     clearInterval(tm); this.busy='' },
-  async open(id){ const r=await this.api('/api/requests/'+id); this.setCur(r); if(!(r.similar||[]).length){ const r2=await this.api('/api/requests/'+id+'/similar',{method:'POST'}); if(this.cur&&this.cur.id===id){ const k=this.dv; this.setCur(r2); this.dv=k } } },
+  async open(id){ const r=await this.api('/api/requests/'+id); this.setCur(r); if(this.canWork && !(r.similar||[]).length){ const r2=await this.api('/api/requests/'+id+'/similar',{method:'POST'}); if(this.cur&&this.cur.id===id){ const k=this.dv; this.setCur(r2); this.dv=k } } },
   setCur(r){ if(!this.cur||this.cur.id!==r.id){ this.lf={kind:'kwerenda',new_date:r.max_deadline||'',notes:'',dept:'',days:7,ground:'prywatnosc',withDate:false} } this.cur=r; this.edit={lp:r.lp,number:r.number,received_date:r.received_date,initials:r.initials,extended_days:r.extended_days||0,
       answered_date:r.answered_date,requester:r.requester,subject:r.subject,summary:r.summary};
     this.dv={text:r.draft||'', spans:(r.anon_spans||[]).map(s=>({...s,ok:s.ok||false}))}; this.ver=r.verification||null; this.mode=(r.verification&&r.verification.counts&&r.verification.counts.error)?'check':'anon' },
@@ -984,12 +1096,16 @@ function app(){return{
   async applyLetter(L){ try{ const r=await this.api('/api/letters/'+L.id+'/apply',{method:'POST'}); const keep=this.dv; this.setCur(r); this.dv=keep; this.lastLetter=L.id; await this.load(); this.say('Nowy termin w kalendarzu: '+this.fmt(r.deadline)) }catch(e){ this.say('Błąd: '+e.message) } },
   async delLetter(L){ if(!confirm('Usunąć pismo?')) return; await this.api('/api/letters/'+L.id,{method:'DELETE'}); this.open(this.cur.id) },
   // ---- administracja ----
-  saveMe(){ try{ localStorage.setItem('udip_me', this.me.trim()) }catch(e){} },
-  openAdmin(){ this.tab='admin'; if(this.adminToken) this.adminLoad() },
-  async adminLogin(){ this.adminErr=''; try{ const r=await this.api('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:this.adminPw,actor:this.me||'jury'})});
-      this.adminToken=r.token; this.adminPw=''; try{ sessionStorage.setItem('udip_admin',r.token) }catch(e){} this.adminLoad() }catch(e){ this.adminErr=e.message } },
-  adminLogout(expired){ this.adminToken=''; try{ sessionStorage.removeItem('udip_admin') }catch(e){} if(expired===true) this.say('Sesja administratora wygasła – zaloguj się ponownie') },
-  async adminLoad(){ if(!this.adminToken) return; try{
+  async addUser(){ this.adm.userErr=''; try{ const r=await this.api('/api/admin/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(this.adm.nu)});
+      this.adm.users=r.items; if(r.temp_password){ this.adm.tempPw=r.temp_password; this.adm.tempFor=this.adm.nu.username } this.say('Utworzono konto '+this.adm.nu.username);
+      this.adm.nu={username:'',full_name:'',initials:'',role:'aip',dept_code:'',password:''} }catch(e){ this.adm.userErr=e.message } },
+  async updUser(u,patch){ try{ const r=await this.api('/api/admin/users/'+u.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)}); this.adm.users=r.items; this.say('Zapisano: '+u.username) }catch(e){ this.say('Błąd: '+e.message); this.adminLoad() } },
+  async resetUserPw(u){ if(!confirm('Wygenerować nowe hasło tymczasowe dla '+u.username+'? Aktywne sesje użytkownika zostaną zakończone.')) return;
+    try{ const r=await this.api('/api/admin/users/'+u.id+'/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}); this.adm.tempPw=r.temp_password; this.adm.tempFor=u.username; this.adminLoad() }catch(e){ this.say('Błąd: '+e.message) } },
+  async delUser(u){ if(!confirm('Usunąć konto '+u.username+'? Wpisy w dzienniku zdarzeń zostaną zachowane.')) return; try{ const r=await this.api('/api/admin/users/'+u.id,{method:'DELETE'}); this.adm.users=r.items; this.say('Usunięto konto') }catch(e){ this.say('Błąd: '+e.message) } },
+  openAdmin(){ this.tab='admin'; this.mobileMenu=false; if(this.isAdmin) this.adminLoad() },
+  async adminLoad(){ if(!this.isAdmin) return; try{
+      if(this.adminTab==='users'){ const r=await this.api('/api/admin/users'); this.adm.users=r.items; this.adm.roles=r.roles }
       if(this.adminTab==='settings'){ const r=await this.api('/api/admin/settings'); this.adm.settings=r; this.adm.form={...r.values}; this.adm.err='' }
       if(this.adminTab==='dicts'){ const r=await this.api('/api/admin/departments'); this.adm.depts=r.items.map(d=>({external:false,url:'',scope:'',...d})); this.adm.deptCustom=r.custom; this.adm.deptSource=r.source; this.adm.deptErr='' }
       if(this.adminTab==='audit') await this.loadAudit();

@@ -32,31 +32,12 @@ def add_detail(text):
 
 # ---------------- autoryzacja administratora ----------------
 
-def _token() -> str:
-    pw = os.getenv("ADMIN_PASSWORD", "")
-    return hmac.new(pw.encode(), b"udip-admin-v1", hashlib.sha256).hexdigest() if pw else ""
-
-
-def require_admin(x_admin_token: str = Header(default="")):
-    t = _token()
-    if not t:
-        raise HTTPException(503, "Panel administracyjny wyłączony – ustaw ADMIN_PASSWORD w pliku .env na serwerze")
-    if not hmac.compare_digest(x_admin_token or "", t):
-        raise HTTPException(401, "Wymagane logowanie administratora")
+def require_admin():
+    from .auth import current_user
+    u = current_user.get()
+    if not u or u.get("role") != "admin":
+        raise HTTPException(403, "Panel administracyjny jest dostępny tylko dla roli Administrator")
     return True
-
-
-@router.post("/login")
-def login(body: dict = Body(...)):
-    pw = os.getenv("ADMIN_PASSWORD", "")
-    if not pw:
-        raise HTTPException(503, "Panel administracyjny wyłączony – ustaw ADMIN_PASSWORD w pliku .env na serwerze")
-    time.sleep(0.4)  # spowolnienie prób zgadywania
-    if not hmac.compare_digest(str(body.get("password", "")), pw):
-        log("logowanie administratora – nieudane", "admin", None, None, actor=body.get("actor"))
-        raise HTTPException(401, "Nieprawidłowe hasło administratora")
-    log("logowanie administratora", "admin", None, None, actor=body.get("actor"))
-    return {"token": _token()}
 
 
 # ---------------- dziennik zdarzeń ----------------
@@ -93,6 +74,10 @@ ROUTES = [
     ("POST", r"^/api/anonymize/apply$", "anonimizacja dokumentu (zatwierdzenie)", "dokument"),
     ("POST", r"^/api/anonymize/docx$", "eksport zanonimizowanego dokumentu", "dokument"),
     ("PUT", r"^/api/admin/settings$", "zmiana ustawień", "ustawienia"),
+    ("POST", r"^/api/admin/users$", "utworzenie konta użytkownika", "konto"),
+    ("PATCH", r"^/api/admin/users/(\d+)$", "zmiana konta użytkownika", "konto"),
+    ("POST", r"^/api/admin/users/(\d+)/reset-password$", "reset hasła użytkownika", "konto"),
+    ("DELETE", r"^/api/admin/users/(\d+)$", "usunięcie konta użytkownika", "konto"),
     ("PUT", r"^/api/admin/departments$", "zmiana słownika komórek", "ustawienia"),
     ("POST", r"^/api/admin/departments/reset$", "przywrócenie słownika komórek z BIP", "ustawienia"),
     ("GET", r"^/api/admin/backup$", "pobranie kopii zapasowej", "system"),
@@ -132,8 +117,8 @@ async def audit_middleware(request: Request, call_next):
             if m == method:
                 mm = re.match(rx, path)
                 if mm:
-                    from urllib.parse import unquote
-                    actor = unquote(request.headers.get("x-user", "")) or "jury"
+                    from .auth import current_user, actor_label
+                    actor = actor_label(current_user.get())
                     if resp.status_code >= 400:
                         label += " – BŁĄD"
                     log(label, otype, mm.group(1) if mm.groups() else None, "; ".join(holder) or None, actor, method, path,
@@ -278,7 +263,7 @@ def system():
         "storage": {"db_bytes": os.path.getsize(dbp) if os.path.exists(dbp) else 0, "previews_bytes": _dir_size(prev) if os.path.isdir(prev) else 0,
                     "disk_free_bytes": du.free, "disk_total_bytes": du.total},
         "counts": counts, "backups": backups,
-        "security": {"admin_password_set": bool(os.getenv("ADMIN_PASSWORD")), "api_key_set": bool(os.getenv("OPENAI_API_KEY")),
+        "security": {"admin_password_set": True, "api_key_set": bool(os.getenv("OPENAI_API_KEY")),
                      "auto_send": False},
     }
 
