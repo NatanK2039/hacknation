@@ -25,6 +25,8 @@ Logowanie w aplikacji (sesja w ciasteczku HttpOnly, 12 h, blokada po 5 błędnyc
 
 Uprawnienia sprawdza serwer (middleware), nie tylko interfejs. Każda odmowa i logowanie trafia do dziennika zdarzeń.
 
+Zabezpieczenia: twardy limit sesji 24 h, zmiana hasła kończy pozostałe sesje, limit plików 25 MB i 40 stron PDF, lista dozwolonych typów, kontener bez uprawnień roota, dokumentacja API wyłączona.
+
 ## Lokalnie (dev)
 ```bash
 pip install -r requirements.txt && cp .env.example .env

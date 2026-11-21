@@ -22,6 +22,7 @@ SESSION_H = int(os.getenv("SESSION_HOURS", "12"))
 current_user = contextvars.ContextVar("current_user", default=None)
 router = APIRouter(prefix="/api/auth")
 _fail = {}  # (ip, username) -> [timestamps]
+SESSION_MAX_H = 24  # twardy limit życia sesji, niezależnie od aktywności
 
 
 # ---------------- hasła i sesje ----------------
@@ -68,6 +69,10 @@ def user_from_token(t: str):
         r = c.execute("""SELECT u.*, s.expires, s.token_hash FROM sessions s JOIN users u ON u.id=s.user_id
                          WHERE s.token_hash=?""", (_tok_hash(t),)).fetchone()
         if not r or not r["active"] or r["expires"] < datetime.now().isoformat(timespec="seconds"):
+            return None
+        born = c.execute("SELECT created_at FROM sessions WHERE token_hash=?", (r["token_hash"],)).fetchone()[0]
+        if born and born < (datetime.now() - timedelta(hours=SESSION_MAX_H)).strftime("%Y-%m-%d %H:%M:%S"):
+            c.execute("DELETE FROM sessions WHERE token_hash=?", (r["token_hash"],))
             return None
         # przesuwane wygaśnięcie sesji
         c.execute("UPDATE sessions SET expires=? WHERE token_hash=?",
@@ -174,6 +179,9 @@ def _ip(request: Request) -> str:
     return (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[0].strip()
 
 
+_DUMMY_HASH = hash_pw(secrets.token_urlsafe(12))
+
+
 @router.post("/login")
 def login(request: Request, body: dict = Body(...)):
     from .admin import log
@@ -188,10 +196,11 @@ def login(request: Request, body: dict = Body(...)):
     with db.conn() as c:
         u = c.execute("SELECT * FROM users WHERE lower(username)=?", (username,)).fetchone()
     time.sleep(0.3)
-    if not u or not u["active"] or not check_pw(pw, u["password_hash"]):
+    ok = check_pw(pw, u["password_hash"] if u else _DUMMY_HASH)  # zawsze liczymy skrót – stały czas odpowiedzi
+    if not u or not u["active"] or not ok:
         _fail[key].append(now)
         log("logowanie – nieudane", "konto", None, username, actor=username, status=401, ip=key[0])
-        raise HTTPException(401, "Nieprawidłowy login lub hasło" if not u or u["active"] else "Konto jest zablokowane")
+        raise HTTPException(401, "Nieprawidłowy login lub hasło")
     _fail.pop(key, None)
     t = create_session(u["id"], key[0], request.headers.get("user-agent"))
     log("logowanie", "konto", u["id"], None, actor=actor_label(dict(u)), status=200, ip=key[0])
@@ -221,7 +230,7 @@ def me():
 
 
 @router.post("/password")
-def change_password(body: dict = Body(...)):
+def change_password(request: Request, body: dict = Body(...)):
     from .admin import log
     u = current_user.get()
     with db.conn() as c:
@@ -234,6 +243,7 @@ def change_password(body: dict = Body(...)):
         raise HTTPException(400, "Nowe hasło musi różnić się od obecnego")
     with db.conn() as c:
         c.execute("UPDATE users SET password_hash=?, must_change=0 WHERE id=?", (hash_pw(new), u["id"]))
+        c.execute("DELETE FROM sessions WHERE user_id=? AND token_hash<>?", (u["id"], _tok_hash(request.cookies.get(COOKIE) or "")))
     log("zmiana własnego hasła", "konto", u["id"], None, actor=actor_label(u))
     return {"ok": True}
 

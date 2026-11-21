@@ -120,19 +120,24 @@ def _process_image(img, n: int, force_vision: bool = False) -> dict:
 
 # ---------------- główna funkcja ----------------
 
+MAX_PDF_PAGES = 40
+
+
 def recognize(filename: str, data: bytes, force_vision: bool = False, keep_images: bool = True) -> dict:
     name = (filename or "").lower()
     pages, images = [], []
     if name.endswith(".pdf"):
         import pdfplumber
         with pdfplumber.open(io.BytesIO(data)) as pdf:
+            if len(pdf.pages) > MAX_PDF_PAGES:
+                raise ValueError(f"dokument ma {len(pdf.pages)} stron (limit {MAX_PDF_PAGES})")
             layer = [(p.extract_text() or "") for p in pdf.pages]
         need_raster = force_vision or any(len(re.sub(r"\s", "", t)) < 80 for t in layer) or keep_images
         rendered = []
         if need_raster:
             try:
                 from pdf2image import convert_from_bytes
-                rendered = convert_from_bytes(data, dpi=200)
+                rendered = convert_from_bytes(data, dpi=200, last_page=MAX_PDF_PAGES)
             except Exception:
                 rendered = []
         for i, t in enumerate(layer):
