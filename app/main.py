@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import ai, anonymize, db, seed
+from .verify import verify as verify_draft
 from .deadlines import compute_deadline, is_working_day
 from datetime import timedelta
 from .docx_export import build_docx
@@ -97,6 +98,11 @@ def get_req(rid: int) -> dict:
         if not r:
             raise HTTPException(404, "Brak wniosku")
         r["responses"] = [dict(x) for x in c.execute("SELECT * FROM responses WHERE request_id=? ORDER BY id", (rid,)).fetchall()]
+    if r.get("draft"):
+        try:
+            r["verification"] = verify_draft(r["draft"], r["responses"], r.get("content") or "")
+        except Exception as e:
+            r["verification"] = {"error": str(e)}
     return decorate(r)
 
 
@@ -373,6 +379,12 @@ def make_draft(rid: int):
     spans = anonymize.detect(draft)
     update_req(rid, {"draft": draft, "anon_spans": spans, "final_text": None}, "wygenerowano projekt odpowiedzi")
     return get_req(rid)
+
+
+@app.post("/api/requests/{rid}/verify")
+def verify_endpoint(rid: int, body: dict = Body(default={})):
+    r = get_req(rid)
+    return verify_draft(body.get("text") or r.get("draft") or "", r["responses"], r.get("content") or "")
 
 
 @app.post("/api/requests/{rid}/anonymize/detect")
